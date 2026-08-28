@@ -24,12 +24,12 @@
 var Nube = (function () {
 
   var FIREBASE_CONFIG = {
-    apiKey: "PENDIENTE",
-    authDomain: "PENDIENTE",
-    projectId: "PENDIENTE",
-    storageBucket: "PENDIENTE",
-    messagingSenderId: "PENDIENTE",
-    appId: "PENDIENTE"
+    apiKey: "AIzaSyAmrqTZmaoIPb0bM6WqVw4x4I7Wbsa6UB0",
+    authDomain: "simodi-9b9f9.firebaseapp.com",
+    projectId: "simodi-9b9f9",
+    storageBucket: "simodi-9b9f9.firebasestorage.app",
+    messagingSenderId: "273629499703",
+    appId: "1:273629499703:web:92842de021ad6c424a4ab2"
   };
 
   var SALA = 'principal';   // por si en el futuro conviven varias salas en el mismo proyecto
