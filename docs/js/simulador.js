@@ -215,7 +215,7 @@ var Simulador = (function () {
   }
 
   /* Cambia el escenario de un dispositivo sin perder el historial previo. */
-  function cambiarEscenario(dispId, clave, precargaHoras) {
+  function cambiarEscenario(dispId, clave, precargaHoras, operador) {
     var d = Modelo.estado.dispositivos[dispId];
     if (!d || !ESCENARIOS[clave]) return;
     var c = Modelo.camaDeDispositivo(dispId);
@@ -229,7 +229,7 @@ var Simulador = (function () {
       d._proxCorte = (d.reloj || Date.now()) + 3 * 60000;
     }
     Modelo.registrarEvento(c ? c.id : null, 'escenario',
-      'Escenario piloto → ' + ESCENARIOS[clave].nombre, dispId);
+      'Escenario piloto → ' + ESCENARIOS[clave].nombre, dispId, operador);
   }
 
   return {

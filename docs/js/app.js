@@ -13,7 +13,7 @@ var Acciones = (function () {
   function cambiarModo(modo) {
     if (Modelo.estado.modo === modo) return;
     Modelo.estado.modo = modo;
-    Modelo.registrarEvento(null, 'sistema', 'Modo de operación → ' + (modo === 'real' ? 'REAL (ESP32)' : 'PILOTO (demo)'));
+    Modelo.registrarEvento(null, 'sistema', 'Modo de operación → ' + (modo === 'real' ? 'REAL (ESP32)' : 'PILOTO (demo)'), null, Operador.actual());
     guardar();
     if (modo === 'real') Conexion.abrir();
     UI.pintarTodo();
@@ -25,15 +25,17 @@ var Acciones = (function () {
     var num = n;
     while (Modelo.buscarCama(letra + num)) num++;
     var id = letra + num;
-    Modelo.estado.camas.push({ id: id, etiqueta: 'UTI-' + String(num).padStart(2, '0'), pacienteId: null, dispositivoId: null });
-    Modelo.registrarEvento(id, 'sistema', 'Cama agregada a la sala');
+    var cama = { id: id, etiqueta: 'UTI-' + String(num).padStart(2, '0'), pacienteId: null, dispositivoId: null };
+    Modelo.estado.camas.push(cama);
+    Modelo.registrarEvento(id, 'sistema', 'Cama agregada a la sala', null, Operador.actual());
+    if (typeof Nube !== 'undefined' && Nube.activo()) Nube.guardarCama(cama);
     guardar();
     UI.pintarTodo();
     UI.toast('Cama agregada');
   }
 
   function cambiarEscenario(dispId, clave, reiniciar) {
-    Simulador.cambiarEscenario(dispId, clave, reiniciar ? 8 : 0);
+    Simulador.cambiarEscenario(dispId, clave, reiniciar ? 8 : 0, Operador.actual());
     guardar();
     UI.pintarTodo();
   }
@@ -52,7 +54,7 @@ var Acciones = (function () {
       tempC: ultima ? ultima.tempC : 36.8, rgb: ultima ? ultima.rgb : [240, 224, 90],
       bat: d.bat, rssi: d.rssi, origen: 'manual'
     });
-    Modelo.registrarEvento(camaId, 'vaciado', 'Vaciado manual de bolsa (' + U.num(mlVaciados, 0) + ' mL) registrado por enfermería', d.id);
+    Modelo.registrarEvento(camaId, 'vaciado', 'Vaciado manual de bolsa (' + U.num(mlVaciados, 0) + ' mL) registrado por ' + Operador.actual(), d.id, Operador.actual());
     guardar();
     UI.pintarTodo();
     UI.toast('Vaciado registrado: ' + U.num(mlVaciados, 0) + ' mL');
@@ -117,6 +119,7 @@ var Acciones = (function () {
 
   UI.bind();
   UI.pintarReloj();
+  UI.pintarOperador();
   UI.pintarTodo();
   Alertas.actualizar();
   UI.pintarTodo();
@@ -124,8 +127,28 @@ var Acciones = (function () {
   if (esPrimeraVez) {
     UI.toast('Sala de ejemplo cargada en modo piloto. Probá abrir una cama para ver el detalle.');
   }
+  if (Operador.necesitaPreguntar()) UI.abrirOperador();
 
   if (Modelo.estado.modo === 'real') Conexion.abrir();
+
+  /* --- base de datos compartida: si está configurada, se conecta sola --- */
+  if (typeof Nube !== 'undefined' && Nube.configurado()) {
+    Nube.alCambiarEstado(function () { UI.pintarBarraEstado(); });
+    Nube.iniciar({
+      pacientes: function (mapa) {
+        Object.keys(mapa).forEach(function (id) { Modelo.aplicarPacienteRemoto(mapa[id]); });
+        UI.pintarTodo();
+      },
+      camas: function (mapa) {
+        Object.keys(mapa).forEach(function (id) { Modelo.aplicarCamaRemota(mapa[id]); });
+        UI.pintarTodo();
+      },
+      eventos: function (nuevos) {
+        nuevos.forEach(Modelo.aplicarEventoRemoto);
+        UI.pintarTodo();
+      }
+    });
+  }
 
   /* --- reloj de pared: 1 vez por segundo --- */
   setInterval(UI.pintarReloj, 1000);

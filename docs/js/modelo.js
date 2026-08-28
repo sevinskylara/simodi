@@ -118,6 +118,7 @@ var Modelo = (function () {
       eventos: []
     };
     E.dispositivos[d.id] = d;
+    if (typeof Nube !== 'undefined' && Nube.activo()) Nube.guardarDispositivoMeta(d);
     return d;
   }
 
@@ -141,7 +142,7 @@ var Modelo = (function () {
       .filter(function (d) { return !usados[d.id]; });
   }
 
-  function asignar(camaId, pacienteId, dispositivoId) {
+  function asignar(camaId, pacienteId, dispositivoId, operador) {
     var cama = buscarCama(camaId);
     if (!cama) return;
     // Un dispositivo no puede estar en dos camas a la vez.
@@ -149,7 +150,8 @@ var Modelo = (function () {
       E.camas.forEach(function (c) {
         if (c.id !== camaId && c.dispositivoId === dispositivoId) {
           c.dispositivoId = null;
-          registrarEvento(c.id, 'asignacion', 'Dispositivo retirado de ' + c.etiqueta);
+          registrarEvento(c.id, 'asignacion', 'Dispositivo retirado de ' + c.etiqueta, null, operador);
+          sincronizarCama(c);
         }
       });
     }
@@ -158,7 +160,8 @@ var Modelo = (function () {
     var p = pacienteId ? E.pacientes[pacienteId] : null;
     var d = dispositivoId ? E.dispositivos[dispositivoId] : null;
     registrarEvento(camaId, 'asignacion',
-      p ? ('Vinculado ' + p.nombre + (d ? ' ↔ ' + d.serie : '')) : 'Cama liberada');
+      p ? ('Vinculado ' + p.nombre + (d ? ' ↔ ' + d.serie : '')) : 'Cama liberada', null, operador);
+    sincronizarCama(cama);
   }
 
   function altaPaciente(datos) {
@@ -167,7 +170,13 @@ var Modelo = (function () {
       dx: '', ingreso: Date.now(), objetivoMlKgH: 0.5, notas: ''
     }, datos);
     E.pacientes[p.id] = p;
+    if (typeof Nube !== 'undefined' && Nube.activo()) Nube.guardarPaciente(p);
     return p;
+  }
+
+  /* --- espejo hacia la base compartida (no-op si Nube no está activa) --- */
+  function sincronizarCama(cama) {
+    if (typeof Nube !== 'undefined' && Nube.activo()) Nube.guardarCama(cama);
   }
 
   /* Al dar de alta / cambiar de paciente se reinicia el acumulado del equipo. */
@@ -238,8 +247,8 @@ var Modelo = (function () {
 
   /* ============================ Eventos ============================= */
 
-  function registrarEvento(camaId, tipo, texto, dispId) {
-    var ev = { t: Date.now(), camaId: camaId, tipo: tipo, texto: texto };
+  function registrarEvento(camaId, tipo, texto, dispId, operador) {
+    var ev = { t: Date.now(), camaId: camaId, tipo: tipo, texto: texto, operador: operador || null };
     E.eventos.push(ev);
     if (E.eventos.length > 400) E.eventos = E.eventos.slice(-300);
     if (dispId && E.dispositivos[dispId]) {
@@ -248,7 +257,35 @@ var Modelo = (function () {
         E.dispositivos[dispId].eventos = E.dispositivos[dispId].eventos.slice(-120);
       }
     }
+    if (typeof Nube !== 'undefined' && Nube.activo()) Nube.agregarEvento(ev);
     return ev;
+  }
+
+  /* ==================== Fusión de cambios remotos ==================== */
+  /* Llamado desde Nube cuando otra computadora modifica pacientes, camas
+     o agrega un evento. Nunca toca muestras/dispositivos en vivo: eso
+     sigue siendo local a cada navegador. */
+
+  function aplicarPacienteRemoto(p) {
+    E.pacientes[p.id] = p;
+  }
+
+  function aplicarCamaRemota(data) {
+    var cama = buscarCama(data.id);
+    if (!cama) {
+      cama = { id: data.id, etiqueta: data.etiqueta || data.id, pacienteId: null, dispositivoId: null };
+      E.camas.push(cama);
+    }
+    if (data.etiqueta) cama.etiqueta = data.etiqueta;
+    cama.pacienteId = data.pacienteId || null;
+    cama.dispositivoId = data.dispositivoId || null;
+  }
+
+  function aplicarEventoRemoto(ev) {
+    if (E.eventos.some(function (e) { return e.id === ev.id; })) return;
+    E.eventos.push(ev);
+    E.eventos.sort(function (a, b) { return a.t - b.t; });
+    if (E.eventos.length > 400) E.eventos = E.eventos.slice(-300);
   }
 
   /* ====================== Cálculos sobre la serie ==================== */
@@ -430,6 +467,9 @@ var Modelo = (function () {
     bucketsHorarios: bucketsHorarios,
     volumenEn: volumenEn,
     tasaMlH: tasaMlH,
-    camasVisibles: camasVisibles
+    camasVisibles: camasVisibles,
+    aplicarPacienteRemoto: aplicarPacienteRemoto,
+    aplicarCamaRemota: aplicarCamaRemota,
+    aplicarEventoRemoto: aplicarEventoRemoto
   };
 })();

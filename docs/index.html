@@ -37,6 +37,13 @@
   </div>
 
   <div class="barra-estado">
+    <button class="chip chip-operador" id="chipOperador" title="Cambiar quién está operando esta computadora">
+      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+      <span class="chip-txt" id="operadorTxt">—</span>
+    </button>
+    <div class="chip" id="chipNube" title="Sincronización con la base compartida">
+      <span class="led"></span><span class="chip-txt">Sin conectar</span>
+    </div>
     <div class="chip" id="chipEnlace" title="Estado del enlace con el dispositivo">
       <span class="led"></span><span class="chip-txt">Simulación</span>
     </div>
@@ -213,10 +220,43 @@
   </div>
 </div>
 
+<!-- ============================ MODAL OPERADOR ============================ -->
+<div class="modal" id="modalOperador" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal-caja">
+    <header class="modal-head">
+      <h2 id="opTitulo">¿Quién está operando esta computadora?</h2>
+      <button class="ico-btn" id="btnCerrarOperador" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </header>
+    <div class="modal-cuerpo">
+      <p class="nota" id="opNota">Se usa para dejar registrado quién hizo cada cambio (asignar un paciente, registrar
+        un vaciado, etc.). Es solo para esta computadora — se puede cambiar en cualquier momento desde el ícono de
+        arriba o desde Configuración, por ejemplo al pasar el turno.</p>
+      <div class="fila">
+        <div class="campo"><label>Nombre y apellido</label><input type="text" id="opNombre" placeholder="Ej: Sevinsky, Lara"></div>
+        <div class="campo"><label>Rol</label><select id="opRol">
+          <option value="Enfermero/a">Enfermero/a</option>
+          <option value="Médico/a">Médico/a</option>
+          <option value="Otro">Otro</option>
+        </select></div>
+      </div>
+      <div class="acciones">
+        <button class="btn secundario chico oculto" id="btnInvitadoOperador">Continuar como invitado</button>
+        <button class="btn chico" id="btnGuardarOperador">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div class="toasts" id="toasts"></div>
 
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
 <script src="js/config.js"></script>
 <script src="js/util.js"></script>
+<script src="js/operador.js"></script>
+<script src="js/nube.js"></script>
 <script src="js/almacenamiento.js"></script>
 <script src="js/modelo.js"></script>
 <script src="js/alertas.js"></script>

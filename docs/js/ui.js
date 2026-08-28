@@ -56,7 +56,7 @@ var UI = (function () {
 
   function claseEstado(cama, m) {
     if (!cama.pacienteId && !cama.dispositivoId) return 'libre';
-    if (!m || m.vacio) return 'sinsenal';
+    if (!m || m.vacio) return m && m.paciente ? 'sindispositivo' : 'sinsenal';
     if (m.sinSenalSeg > CFG.umbrales.segundosSinDatos) return 'sinsenal';
     var nivel = Alertas.nivelCama(cama.id);
     return nivel === 'sinsenal' ? 'ok' : nivel;
@@ -133,6 +133,28 @@ var UI = (function () {
       return div;
     }
 
+    if (estado === 'sindispositivo') {
+      div.innerHTML =
+        '<div class="cama-head">' +
+          '<div class="cama-ident">' +
+            '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>' +
+            '<div>' +
+              '<div class="cama-nombre">' + U.esc(m.paciente.nombre) + '</div>' +
+              '<div class="cama-meta">' + U.esc(m.paciente.hc) + ' · ' + (m.paciente.edad ? m.paciente.edad + 'a · ' : '') + m.paciente.pesoKg + ' kg</div>' +
+            '</div>' +
+          '</div>' +
+        '</div>' +
+        '<div class="cama-libre-cuerpo">' +
+          iconoCamaLibre() +
+          '<div>Paciente admitido, sin dispositivo vinculado</div>' +
+          '<button class="btn secundario chico" data-accion="asignar">Vincular dispositivo</button>' +
+        '</div>';
+      div.querySelector('[data-accion="asignar"]').onclick = function (ev) {
+        ev.stopPropagation(); abrirAsignar(cama.id);
+      };
+      return div;
+    }
+
     var p = m.paciente, d = m.dispositivo;
     var bat = d.bat;
     var claseBat = bat <= CFG.umbrales.bateriaCritica ? 'critica' : (bat <= CFG.umbrales.bateriaBaja ? 'baja' : '');
@@ -146,7 +168,7 @@ var UI = (function () {
           '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>' +
           '<div>' +
             '<div class="cama-nombre">' + U.esc(p ? p.nombre : 'Sin paciente') + '</div>' +
-            '<div class="cama-meta">' + (p ? U.esc(p.hc) + ' · ' + p.edad + 'a · ' + p.pesoKg + ' kg' : d.serie) + '</div>' +
+            '<div class="cama-meta">' + (p ? U.esc(p.hc) + ' · ' + (p.edad ? p.edad + 'a · ' : '') + p.pesoKg + ' kg' : d.serie) + '</div>' +
           '</div>' +
         '</div>' +
         '<div class="cama-badges">' +
@@ -240,6 +262,7 @@ var UI = (function () {
       var cama = e.camaId ? Modelo.buscarCama(e.camaId) : null;
       return '<div class="item-evento"><span class="hora">' + U.hora(e.t) + '</span><span>' +
         (cama ? '<b style="color:var(--texto)">' + U.esc(cama.etiqueta) + '</b> · ' : '') +
+        (e.operador ? '<span class="ev-operador">' + U.esc(e.operador) + '</span> — ' : '') +
         U.esc(e.texto) + '</span></div>';
     }).join('');
   }
@@ -292,10 +315,58 @@ var UI = (function () {
 
     var btnSonido = U.$('#btnSonido');
     btnSonido.classList.toggle('mudo', U.estaSilenciado());
+
+    pintarChipNube();
+  }
+
+  function pintarChipNube() {
+    var chip = U.$('#chipNube');
+    if (typeof Nube === 'undefined' || !Nube.configurado()) {
+      chip.className = 'chip oculto';
+      return;
+    }
+    chip.className = 'chip';
+    var txt = chip.querySelector('.chip-txt');
+    if (Nube.activo()) { chip.classList.add('en-linea'); txt.textContent = 'Base compartida · en línea'; }
+    else { chip.classList.add('simulado'); txt.textContent = 'Base compartida · conectando…'; }
   }
 
   function pintarReloj() {
     U.$('#reloj').textContent = U.horaSeg(Date.now());
+  }
+
+  /* ============================== OPERADOR =============================== */
+
+  function pintarOperador() {
+    U.$('#operadorTxt').textContent = Operador.actual();
+  }
+
+  function abrirOperador() {
+    var d = Operador.datos();
+    U.$('#opNombre').value = d ? d.nombre : '';
+    U.$('#opRol').value = d ? d.rol : 'Enfermero/a';
+    var primeraVez = Operador.necesitaPreguntar();
+    U.$('#opTitulo').textContent = primeraVez ? '¿Quién está operando esta computadora?' : 'Cambiar operador de esta computadora';
+    U.$('#opNota').style.display = primeraVez ? '' : 'none';
+    U.$('#btnInvitadoOperador').classList.toggle('oculto', !primeraVez);
+    U.$('#btnCerrarOperador').classList.toggle('oculto', primeraVez);
+    U.$('#modalOperador').classList.add('abierto');
+    U.$('#modalOperador').setAttribute('aria-hidden', 'false');
+    U.$('#opNombre').focus();
+  }
+  function cerrarOperador() {
+    if (Operador.necesitaPreguntar()) return;   // la primera vez es obligatorio elegir un nombre
+    U.$('#modalOperador').classList.remove('abierto');
+    U.$('#modalOperador').setAttribute('aria-hidden', 'true');
+  }
+  function guardarOperador() {
+    var nombre = U.$('#opNombre').value.trim();
+    if (!nombre) { U.$('#opNombre').focus(); return; }
+    Operador.establecer(nombre, U.$('#opRol').value);
+    pintarOperador();
+    U.$('#modalOperador').classList.remove('abierto');
+    U.$('#modalOperador').setAttribute('aria-hidden', 'true');
+    toast('Ahora estás operando como ' + nombre);
   }
 
   /* =============================== TODO ================================= */
@@ -339,7 +410,7 @@ var UI = (function () {
     U.$('#detCama').className = 'tag-cama' + (m.vacio ? ' libre' : '');
     U.$('#detNombre').textContent = m.paciente ? m.paciente.nombre : 'Cama sin paciente';
     U.$('#detMeta').textContent = m.paciente
-      ? (m.paciente.hc + ' · ' + m.paciente.edad + ' años · ' + m.paciente.sexo + ' · ' + m.paciente.pesoKg + ' kg · ' + (m.paciente.dx || 'sin diagnóstico cargado'))
+      ? (m.paciente.hc + ' · ' + (m.paciente.edad ? m.paciente.edad + ' años · ' : '') + m.paciente.sexo + ' · ' + m.paciente.pesoKg + ' kg · ' + (m.paciente.dx || 'sin diagnóstico cargado'))
       : (m.dispositivo ? m.dispositivo.serie + ' sin paciente vinculado' : 'Sin dispositivo asignado');
 
     U.$('#btnVaciarBolsa').style.display = m.dispositivo ? '' : 'none';
@@ -476,9 +547,9 @@ var UI = (function () {
     var ev = (d ? d.eventos : []).slice(-60).reverse();
     if (!ev.length) { U.$('#detEventos').innerHTML = '<p class="nota">Sin eventos registrados.</p>'; return; }
     var filas = ev.map(function (e) {
-      return '<tr><td style="font-family:var(--mono);white-space:nowrap">' + U.fechaHora(e.t) + '</td><td>' + U.esc(e.tipo) + '</td><td>' + U.esc(e.texto) + '</td></tr>';
+      return '<tr><td style="font-family:var(--mono);white-space:nowrap">' + U.fechaHora(e.t) + '</td><td>' + U.esc(e.tipo) + '</td><td>' + U.esc(e.operador || 'Sistema') + '</td><td>' + U.esc(e.texto) + '</td></tr>';
     }).join('');
-    U.$('#detEventos').innerHTML = '<table class="tabla"><thead><tr><th>Cuándo</th><th>Tipo</th><th>Detalle</th></tr></thead><tbody>' + filas + '</tbody></table>';
+    U.$('#detEventos').innerHTML = '<table class="tabla"><thead><tr><th>Cuándo</th><th>Tipo</th><th>Operador</th><th>Detalle</th></tr></thead><tbody>' + filas + '</tbody></table>';
   }
 
   /* ============================ MODAL ASIGNAR ============================ */
@@ -547,7 +618,7 @@ var UI = (function () {
     U.$('#btnCancelarAsig').onclick = cerrarAsignar;
     var btnLib = U.$('#btnLiberar');
     if (btnLib) btnLib.onclick = function () {
-      Modelo.asignar(camaId, null, null);
+      Modelo.asignar(camaId, null, null, Operador.actual());
       Acciones.guardar();
       cerrarAsignar(); UI.pintarTodo();
       toast('Cama liberada');
@@ -556,7 +627,7 @@ var UI = (function () {
       var pacId = U.$('#selPaciente').value || null;
       var nuevo = leerFormNuevoPaciente();
       if (nuevo) { var p = Modelo.altaPaciente(nuevo); pacId = p.id; }
-      Modelo.asignar(camaId, pacId, dispSel);
+      Modelo.asignar(camaId, pacId, dispSel, Operador.actual());
       Acciones.guardar();
       cerrarAsignar(); UI.pintarTodo();
       toast('Cama actualizada');
@@ -606,8 +677,25 @@ var UI = (function () {
 
   function abrirConfig() {
     var enlace = Modelo.estado.enlace, med = Modelo.estado.medicion;
+    var op = Operador.datos();
     var html =
-      '<div class="subtitulo">Enlace con el dispositivo real</div>' +
+      '<div class="subtitulo">Usuario de esta computadora</div>' +
+      '<p class="nota">Los cambios que hagas (asignar pacientes, registrar vaciados, etc.) quedan guardados a tu ' +
+        'nombre en el registro de eventos. Cambiá esto al empezar tu turno.</p>' +
+      '<div class="fila" style="align-items:flex-end">' +
+        '<div class="campo"><label>Operando ahora</label>' +
+          '<input type="text" value="' + U.esc(Operador.actual()) + (op ? ' · ' + U.esc(op.rol) : '') + '" disabled></div>' +
+        '<button class="btn secundario chico" id="btnCambiarOperadorCfg">Cambiar usuario</button>' +
+      '</div>' +
+      '<div class="sep"></div><div class="subtitulo">Base de datos compartida</div>' +
+      (Nube.configurado()
+        ? '<p class="nota">' + (Nube.activo()
+            ? 'Conectada. Pacientes, camas y el registro de eventos se sincronizan en tiempo real con el resto de las computadoras del equipo.'
+            : 'Configurada, estableciendo conexión…') + '</p>'
+        : '<p class="nota">Todavía no está configurada — cada computadora guarda sus propios datos por separado. ' +
+          'Para compartir pacientes y camas entre todo el equipo, completá <code>FIREBASE_CONFIG</code> en ' +
+          '<code>js/nube.js</code> con los datos de un proyecto de Firebase (gratis).</p>') +
+      '<div class="sep"></div><div class="subtitulo">Enlace con el dispositivo real</div>' +
       '<div class="campo"><label>Transporte</label><select id="cfgTipo">' +
         ['websocket', 'http', 'bluetooth', 'serie'].map(function (t) {
           return '<option value="' + t + '"' + (enlace.tipo === t ? ' selected' : '') + '>' +
@@ -642,6 +730,7 @@ var UI = (function () {
 
     U.$('#cfgCuerpo').innerHTML = html;
 
+    U.$('#btnCambiarOperadorCfg').onclick = function () { cerrarConfig(); abrirOperador(); };
     U.$('#btnConectarCfg').onclick = function () {
       Modelo.estado.enlace.tipo = U.$('#cfgTipo').value;
       Modelo.estado.enlace.urlWebSocket = U.$('#cfgWs').value.trim();
@@ -739,8 +828,19 @@ var UI = (function () {
     U.$('#btnCerrarAsignar').onclick = cerrarAsignar;
     U.$('#modalAsignar').addEventListener('click', function (ev) { if (ev.target.id === 'modalAsignar') cerrarAsignar(); });
 
+    U.$('#chipOperador').onclick = abrirOperador;
+    U.$('#btnGuardarOperador').onclick = guardarOperador;
+    U.$('#btnCerrarOperador').onclick = cerrarOperador;
+    U.$('#btnInvitadoOperador').onclick = function () {
+      Operador.establecer('Invitado', 'Otro');
+      pintarOperador();
+      cerrarOperador();   // ya no necesita preguntar: establecer() dejó un nombre cargado
+    };
+    U.$('#opNombre').addEventListener('keydown', function (ev) { if (ev.key === 'Enter') guardarOperador(); });
+    U.$('#modalOperador').addEventListener('click', function (ev) { if (ev.target.id === 'modalOperador') cerrarOperador(); });
+
     document.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape') { cerrarDetalle(); cerrarAsignar(); cerrarConfig(); }
+      if (ev.key === 'Escape') { cerrarDetalle(); cerrarAsignar(); cerrarConfig(); cerrarOperador(); }
     });
 
     Alertas.alCambiar(function () { pintarAlertas(); });
@@ -748,8 +848,9 @@ var UI = (function () {
   }
 
   return {
-    bind: bind, pintarTodo: pintarTodo, pintarReloj: pintarReloj,
+    bind: bind, pintarTodo: pintarTodo, pintarReloj: pintarReloj, pintarBarraEstado: pintarBarraEstado,
     abrirDetalle: abrirDetalle, abrirAsignar: abrirAsignar, abrirConfig: abrirConfig,
+    pintarOperador: pintarOperador, abrirOperador: abrirOperador,
     toast: toast
   };
 })();
