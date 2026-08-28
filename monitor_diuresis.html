@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Monitor de Diuresis</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0a1015;
+    --panel:#101922;
+    --panel-2:#0d151d;
+    --border:#1e2c38;
+    --border-soft:#182430;
+    --text:#e6eef3;
+    --text-dim:#728494;
+    --text-faint:#465563;
+    --teal:#39d6c0;
+    --teal-dim:rgba(57,214,192,0.12);
+    --amber:#f0b429;
+    --amber-dim:rgba(240,180,41,0.12);
+    --red:#ef5b5b;
+    --red-dim:rgba(239,91,91,0.14);
+    --green:#4fd67a;
+    --font-display: 'IBM Plex Mono', monospace;
+    --font-body: 'IBM Plex Sans', sans-serif;
+  }
+
+  *{box-sizing:border-box; margin:0; padding:0;}
+
+  body{
+    background:
+      radial-gradient(1200px 600px at 20% -10%, rgba(57,214,192,0.05), transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:var(--font-body);
+    min-height:100vh;
+    padding:20px;
+    -webkit-font-smoothing:antialiased;
+  }
+
+  .shell{ max-width:1180px; margin:0 auto; display:flex; flex-direction:column; gap:14px; }
+
+  /* ---------- HEADER ---------- */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    background:var(--panel); border:1px solid var(--border); border-radius:10px;
+    padding:14px 20px; flex-wrap:wrap; gap:12px;
+  }
+  .patient-id{ display:flex; align-items:baseline; gap:14px; flex-wrap:wrap; }
+  .bed-tag{
+    font-family:var(--font-display); font-size:13px; letter-spacing:0.08em;
+    color:var(--bg); background:var(--teal); padding:5px 10px; border-radius:5px; font-weight:600;
+  }
+  .bed-tag.empty{ background:var(--text-faint); }
+  .patient-name{ font-size:16px; font-weight:600; color:var(--text); }
+  .patient-meta{ font-size:12.5px; color:var(--text-dim); font-family:var(--font-display); }
+  .status-cluster{ display:flex; align-items:center; gap:18px; font-family:var(--font-display); font-size:12.5px; color:var(--text-dim); flex-wrap:wrap; }
+  .status-item{ display:flex; align-items:center; gap:7px; }
+  .dot{ width:7px; height:7px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); }
+  .dot.off{ background:var(--text-faint); box-shadow:none; }
+  .clock{ color:var(--text); font-weight:600; }
+
+  /* ---------- TABS ---------- */
+  .tabs{ display:flex; gap:8px; }
+  .tab-btn{
+    font-family:var(--font-display); font-size:12.5px; letter-spacing:0.04em;
+    color:var(--text-dim); background:var(--panel); border:1px solid var(--border);
+    padding:10px 18px; border-radius:9px; cursor:pointer; transition:all .15s;
+  }
+  .tab-btn:hover{ color:var(--text); }
+  .tab-btn.active{ color:var(--bg); background:var(--teal); border-color:var(--teal); font-weight:600; }
+
+  /* ---------- ALERT BANNER ---------- */
+  .alert-banner{
+    display:none; align-items:center; gap:12px; background:var(--red-dim);
+    border:1px solid rgba(239,91,91,0.4); border-radius:10px; padding:12px 18px;
+    font-family:var(--font-display); font-size:13px; color:#ffb3b3; animation: pulse-border 1.6s infinite;
+  }
+  .alert-banner.show{ display:flex; }
+  @keyframes pulse-border{ 0%,100%{ border-color:rgba(239,91,91,0.4); } 50%{ border-color:rgba(239,91,91,0.9); } }
+
+  /* ---------- PACIENTES PANEL ---------- */
+  .panel-pacientes{
+    background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:18px 20px;
+    display:flex; flex-direction:column; gap:14px;
+  }
+  .panel-row{ display:flex; gap:12px; flex-wrap:wrap; align-items:flex-end; }
+  .field{ display:flex; flex-direction:column; gap:5px; }
+  .field label{ font-family:var(--font-display); font-size:10.5px; letter-spacing:0.06em; text-transform:uppercase; color:var(--text-dim); }
+  .field input, .field select{
+    font-family:var(--font-body); font-size:13.5px; color:var(--text); background:var(--panel-2);
+    border:1px solid var(--border); border-radius:7px; padding:9px 11px; min-width:150px;
+  }
+  .field input:focus, .field select:focus{ outline:none; border-color:var(--teal); }
+  .btn{
+    font-family:var(--font-display); font-size:12.5px; font-weight:600; letter-spacing:0.03em;
+    color:var(--bg); background:var(--teal); border:none; border-radius:7px; padding:10px 16px; cursor:pointer;
+  }
+  .btn:hover{ opacity:0.9; }
+  .btn.secondary{ background:var(--panel-2); color:var(--text-dim); border:1px solid var(--border); }
+  .hint{ font-size:11.5px; color:var(--text-faint); font-family:var(--font-display); }
+  .empty-state{ color:var(--text-dim); font-size:13px; padding:6px 0; }
+
+  /* ---------- MAIN GRID ---------- */
+  .grid{ display:grid; grid-template-columns: 1.3fr 1fr 1fr; gap:14px; }
+  @media (max-width:860px){ .grid{ grid-template-columns:1fr; } }
+
+  .card{ background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:20px 22px; position:relative; overflow:hidden; }
+  .card.flagged{ border-color:rgba(239,91,91,0.45); }
+  .card-label{
+    font-family:var(--font-display); font-size:11px; letter-spacing:0.1em; text-transform:uppercase;
+    color:var(--text-dim); display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;
+  }
+  .tag{ font-size:10px; padding:2px 7px; border-radius:4px; font-weight:600; letter-spacing:0.04em; }
+  .tag.ok{ background:rgba(79,214,122,0.12); color:var(--green); }
+  .tag.warn{ background:var(--amber-dim); color:var(--amber); }
+  .tag.crit{ background:var(--red-dim); color:var(--red); }
+  .tag.na{ background:rgba(114,132,148,0.14); color:var(--text-dim); }
+
+  .hero-value{
+    font-family:var(--font-display); font-weight:600; font-size:64px; line-height:1; color:var(--teal);
+    display:flex; align-items:baseline; gap:8px; text-shadow:0 0 24px rgba(57,214,192,0.35);
+  }
+  .hero-value.warn{ color:var(--amber); text-shadow:0 0 24px rgba(240,180,41,0.35); }
+  .hero-value.crit{ color:var(--red); text-shadow:0 0 24px rgba(239,91,91,0.4); }
+  .hero-value.na{ color:var(--text-faint); text-shadow:none; font-size:40px; }
+  .hero-unit{ font-size:16px; color:var(--text-dim); font-weight:500; }
+  .hero-sub{ margin-top:10px; font-size:12.5px; color:var(--text-dim); font-family:var(--font-display); }
+  .hero-sub b{ color:var(--text); font-weight:600; }
+
+  .chart-wrap{ margin-top:16px; }
+  canvas{ display:block; width:100%; }
+
+  .value-md{ font-family:var(--font-display); font-weight:600; font-size:38px; color:var(--text); display:flex; align-items:baseline; gap:6px; }
+  .value-md .hero-unit{ font-size:14px; }
+  .value-md.na{ color:var(--text-faint); font-size:26px; }
+
+  .mini-row{ display:flex; justify-content:space-between; margin-top:14px; padding-top:14px; border-top:1px solid var(--border-soft); font-family:var(--font-display); font-size:12px; color:var(--text-dim); }
+  .mini-row b{ color:var(--text); }
+
+  .swatch-row{ display:flex; align-items:center; gap:16px; margin-top:4px; }
+  .swatch{ width:56px; height:56px; border-radius:10px; border:2px solid rgba(255,255,255,0.08); flex-shrink:0; transition:background-color 0.6s ease; }
+  .swatch-info{ font-family:var(--font-display); font-size:12px; color:var(--text-dim); }
+  .swatch-info .cls{ font-size:15px; color:var(--text); font-weight:600; font-family:var(--font-body); margin-bottom:3px; }
+
+  .batt-row{ display:flex; align-items:center; gap:10px; }
+  .batt-shell{ width:34px; height:16px; border:1.5px solid var(--text-dim); border-radius:3px; position:relative; padding:2px; }
+  .batt-shell:after{ content:''; position:absolute; right:-4px; top:4px; width:3px; height:6px; background:var(--text-dim); border-radius:0 2px 2px 0; }
+  .batt-fill{ height:100%; background:var(--green); border-radius:1px; }
+
+  .footer{ display:flex; justify-content:space-between; align-items:center; font-family:var(--font-display); font-size:11.5px; color:var(--text-faint); padding:4px 4px 0; flex-wrap:wrap; gap:8px; }
+
+  .demo-controls{ display:flex; gap:8px; flex-wrap:wrap; }
+  .demo-controls button{
+    font-family:var(--font-display); font-size:11px; color:var(--text-dim); background:var(--panel-2);
+    border:1px solid var(--border); padding:6px 10px; border-radius:6px; cursor:pointer; transition:all 0.15s;
+  }
+  .demo-controls button:hover{ color:var(--text); border-color:var(--teal); }
+</style>
+</head>
+<body>
+
+<div class="shell">
+
+  <div class="topbar">
+    <div class="patient-id">
+      <span class="bed-tag" id="bedTag">DEMO</span>
+      <span class="patient-name" id="patientName">Piloto — datos simulados</span>
+      <span class="patient-meta" id="patientMeta">Peso ref: 72 kg</span>
+    </div>
+    <div class="status-cluster" id="statusCluster">
+      <div class="status-item"><span class="dot" id="dotWifi"></span> WiFi</div>
+      <div class="status-item"><span class="dot" id="dotPower"></span> <span id="powerLabel">Red eléctrica</span></div>
+      <div class="status-item">
+        <div class="batt-row">
+          <div class="batt-shell"><div class="batt-fill" id="battFill" style="width:100%"></div></div>
+          <span id="battPct">100%</span>
+        </div>
+      </div>
+      <div class="clock" id="clock">--:--:--</div>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" id="tabBtnPiloto" onclick="switchTab('piloto')">● Piloto (demo)</button>
+    <button class="tab-btn" id="tabBtnPacientes" onclick="switchTab('pacientes')">Pacientes</button>
+  </div>
+
+  <!-- PANEL PACIENTES (solo visible en esa pestaña) -->
+  <div class="panel-pacientes" id="panelPacientes" style="display:none;">
+    <div class="panel-row">
+      <div class="field">
+        <label>Paciente</label>
+        <select id="selectPaciente" onchange="onSelectPaciente()">
+          <option value="">— Sin pacientes cargados —</option>
+        </select>
+      </div>
+      <button class="btn secondary" onclick="toggleAddForm()">+ Agregar paciente</button>
+    </div>
+
+    <div class="panel-row" id="addPatientForm" style="display:none; border-top:1px solid var(--border-soft); padding-top:14px;">
+      <div class="field"><label>Nombre / ID</label><input type="text" id="inNombre" placeholder="Ej: Paciente cama 6"></div>
+      <div class="field"><label>Cama</label><input type="text" id="inCama" placeholder="Ej: 06"></div>
+      <div class="field"><label>Peso (kg)</label><input type="number" id="inPeso" placeholder="70" min="1"></div>
+      <button class="btn" onclick="addPatient()">Guardar paciente</button>
+    </div>
+
+    <div class="panel-row" id="measureForm" style="display:none; border-top:1px solid var(--border-soft); padding-top:14px;">
+      <div class="field"><label>Volumen acumulado en bolsa (mL)</label><input type="number" id="inVol" placeholder="Ej: 340"></div>
+      <div class="field"><label>Temperatura vesical (°C)</label><input type="number" step="0.1" id="inTemp" placeholder="Ej: 36.8"></div>
+      <div class="field">
+        <label>Color observado</label>
+        <select id="inColor">
+          <option value="180,140,60">Ámbar claro</option>
+          <option value="150,95,30">Ámbar oscuro</option>
+          <option value="235,225,200">Transparente / pálido</option>
+          <option value="150,40,40">Rojiza (hematuria)</option>
+          <option value="90,55,30">Marrón oscuro</option>
+        </select>
+      </div>
+      <button class="btn" onclick="addMeasurement()">Registrar medición</button>
+    </div>
+    <div class="hint" id="pacientesHint">Los pacientes y mediciones se guardan solo en esta sesión del navegador (prototipo sin backend).</div>
+  </div>
+
+  <div class="alert-banner" id="alertBanner">
+    <span>⚠</span>
+    <span id="alertText"></span>
+  </div>
+
+  <div class="grid">
+
+    <div class="card" id="cardDiuresis">
+      <div class="card-label">Diuresis horaria <span class="tag ok" id="diuresisTag">NORMAL</span></div>
+      <div class="hero-value" id="diuresisValue">42<span class="hero-unit">mL/h</span></div>
+      <div class="hero-sub" id="diuresisSub">Umbral KDIGO (72 kg): <b>&lt; 36 mL/h</b> sostenido &gt; 6 h</div>
+      <div class="chart-wrap"><canvas id="trendChart" height="120"></canvas></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Temperatura vesical <span class="tag ok" id="tempTag">NORMAL</span></div>
+      <div class="value-md" id="tempValue" style="color:var(--amber)">36.8<span class="hero-unit">°C</span></div>
+      <div class="mini-row"><span>Rango normal</span><b>36.0 – 37.8 °C</b></div>
+      <div class="mini-row" style="border-top:none; padding-top:0; margin-top:8px;"><span>Última lectura</span><b id="tempTime">—</b></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Volumen acumulado</div>
+      <div class="value-md" style="color:var(--text)"><span id="volValue">1240</span><span class="hero-unit">mL</span></div>
+      <div class="mini-row"><span>Registro</span><b id="volSince">—</b></div>
+      <div class="mini-row" style="border-top:none; padding-top:0; margin-top:8px;"><span>Densidad asumida</span><b>1.020 g/mL</b></div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Color de orina</div>
+      <div class="swatch-row">
+        <div class="swatch" id="colorSwatch" style="background:rgb(180,140,60)"></div>
+        <div class="swatch-info">
+          <div class="cls" id="colorClass">Ámbar claro</div>
+          <div>RGB <span id="colorRgb">180, 140, 60</span></div>
+          <div style="margin-top:4px;">Hidratación estimada: <b style="color:var(--text)" id="colorHydration">adecuada</b></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-label">Estado de alertas</div>
+      <div style="display:flex; flex-direction:column; gap:9px; font-family:var(--font-display); font-size:12.5px;">
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim)">Oliguria</span><span class="tag ok" id="statOliguria">OK</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim)">Temperatura</span><span class="tag ok" id="statTemp">OK</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim)">Color anómalo</span><span class="tag ok" id="statColor">OK</span></div>
+        <div style="display:flex; justify-content:space-between;"><span style="color:var(--text-dim)">Batería</span><span class="tag ok" id="statBatt">OK</span></div>
+      </div>
+    </div>
+
+    <div class="card" id="cardDemoControls">
+      <div class="card-label">Simular escenario <span style="font-weight:400; text-transform:none; letter-spacing:0;">(solo piloto)</span></div>
+      <div class="demo-controls">
+        <button onclick="setScenario('normal')">Normal</button>
+        <button onclick="setScenario('oliguria')">Oliguria</button>
+        <button onclick="setScenario('fiebre')">Fiebre</button>
+        <button onclick="setScenario('hematuria')">Hematuria</button>
+        <button onclick="setScenario('bateria')">Batería baja</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    <span>Sistema Inteligente de Monitoreo de Diuresis — ITBA 16.18 · Grupo 1</span>
+    <span id="lastSync">—</span>
+  </div>
+
+</div>
+
+<script>
+/* ============================================================
+   PILOTO: datos simulados en memoria.
+   PACIENTES: mediciones cargadas a mano; cuando el ESP32 esté listo,
+   addMeasurement() se reemplaza por los datos que llegan por fetch()
+   desde el dispositivo, con el mismo formato de "d" usado en renderDashboard().
+   ============================================================ */
+
+let activeTab = 'piloto';
+
+// ---- Estado piloto (simulado, autónomo) ----
+let pilotState = { diuresis:42, volumen:1240, temp:36.8, color:[180,140,60], battPct:100, onBattery:false, scenario:'normal', pesoKg:72, history:Array.from({length:30},(_,i)=>40+Math.sin(i/3)*6+Math.random()*4), label:'Piloto — datos simulados', bed:'DEMO' };
+
+// ---- Estado pacientes (manual) ----
+let patients = {};       // id -> {id, nombre, cama, pesoKg, history:[{t,vol,diuresis,temp,color}]}
+let currentPatientId = null;
+let patientCounter = 0;
+
+function switchTab(tab){
+  activeTab = tab;
+  document.getElementById('tabBtnPiloto').classList.toggle('active', tab==='piloto');
+  document.getElementById('tabBtnPacientes').classList.toggle('active', tab==='pacientes');
+  document.getElementById('panelPacientes').style.display = tab==='pacientes' ? 'flex' : 'none';
+  document.getElementById('cardDemoControls').style.display = tab==='piloto' ? 'block' : 'none';
+  document.getElementById('statusCluster').style.visibility = tab==='piloto' ? 'visible' : 'hidden';
+
+  if(tab==='piloto'){
+    renderDashboard(pilotState);
+  } else {
+    document.getElementById('measureForm').style.display = currentPatientId ? 'flex' : 'none';
+    if(currentPatientId){ renderDashboard(getPatientView(currentPatientId)); }
+    else { renderEmptyPatient(); }
+  }
+}
+
+function setScenario(s){ pilotState.scenario = s; }
+
+function stepPilot(){
+  let target = 42;
+  if(pilotState.scenario === 'oliguria') target = 18;
+  if(pilotState.scenario === 'fiebre') target = 38;
+  if(pilotState.scenario === 'hematuria') target = 40;
+
+  pilotState.diuresis += (target - pilotState.diuresis) * 0.25 + (Math.random()-0.5)*3;
+  pilotState.diuresis = Math.max(2, pilotState.diuresis);
+  pilotState.volumen += Math.max(0, pilotState.diuresis/60*5);
+
+  if(pilotState.scenario === 'fiebre'){ pilotState.temp += (38.6 - pilotState.temp) * 0.2 + (Math.random()-0.5)*0.05; }
+  else { pilotState.temp += (36.8 - pilotState.temp) * 0.2 + (Math.random()-0.5)*0.05; }
+
+  if(pilotState.scenario === 'hematuria'){ pilotState.color = [150,40,40]; }
+  else { let base=[180,140,60]; pilotState.color = base.map(c=>Math.round(c+(Math.random()-0.5)*6)); }
+
+  if(pilotState.scenario === 'bateria'){ pilotState.onBattery = true; pilotState.battPct = Math.max(4, pilotState.battPct - 1.5); }
+  else { pilotState.onBattery = false; pilotState.battPct = Math.min(100, pilotState.battPct + 2); }
+
+  pilotState.history.push(pilotState.diuresis);
+  if(pilotState.history.length > 30) pilotState.history.shift();
+
+  if(activeTab==='piloto') renderDashboard(pilotState);
+}
+
+// ---------------- PACIENTES ----------------
+function toggleAddForm(){
+  const f = document.getElementById('addPatientForm');
+  f.style.display = f.style.display === 'none' ? 'flex' : 'none';
+}
+
+function addPatient(){
+  const nombre = document.getElementById('inNombre').value.trim();
+  const cama = document.getElementById('inCama').value.trim();
+  const peso = parseFloat(document.getElementById('inPeso').value);
+  if(!nombre || !cama || !peso){ alert('Completá nombre, cama y peso.'); return; }
+
+  patientCounter++;
+  const id = 'p'+patientCounter;
+  patients[id] = { id, nombre, cama, pesoKg:peso, history:[] };
+  currentPatientId = id;
+  refreshPatientSelect();
+  document.getElementById('addPatientForm').style.display = 'none';
+  document.getElementById('inNombre').value=''; document.getElementById('inCama').value=''; document.getElementById('inPeso').value='';
+  document.getElementById('measureForm').style.display = 'flex';
+  renderEmptyPatient(patients[id]);
+}
+
+function refreshPatientSelect(){
+  const sel = document.getElementById('selectPaciente');
+  sel.innerHTML = '';
+  const ids = Object.keys(patients);
+  if(ids.length === 0){
+    sel.innerHTML = '<option value="">— Sin pacientes cargados —</option>';
+    return;
+  }
+  ids.forEach(id=>{
+    const p = patients[id];
+    const opt = document.createElement('option');
+    opt.value = id;
+    opt.textContent = `Cama ${p.cama} — ${p.nombre}`;
+    if(id === currentPatientId) opt.selected = true;
+    sel.appendChild(opt);
+  });
+}
+
+function onSelectPaciente(){
+  currentPatientId = document.getElementById('selectPaciente').value || null;
+  document.getElementById('measureForm').style.display = currentPatientId ? 'flex' : 'none';
+  if(currentPatientId){ renderDashboard(getPatientView(currentPatientId)); }
+  else { renderEmptyPatient(); }
+}
+
+function addMeasurement(){
+  if(!currentPatientId) return;
+  const p = patients[currentPatientId];
+  const vol = parseFloat(document.getElementById('inVol').value);
+  const temp = parseFloat(document.getElementById('inTemp').value);
+  const color = document.getElementById('inColor').value.split(',').map(Number);
+  if(isNaN(vol)){ alert('Ingresá el volumen acumulado.'); return; }
+
+  const now = new Date();
+  p.history.push({ t: now, vol: vol, temp: isNaN(temp) ? null : temp, color: color });
+  if(p.history.length > 30) p.history.shift();
+
+  document.getElementById('inVol').value = '';
+  renderDashboard(getPatientView(currentPatientId));
+}
+
+function getPatientView(id){
+  const p = patients[id];
+  const h = p.history;
+  let diuresis = null, volumen = 0, temp = null, color = [200,200,200], diuresisSeries = [];
+
+  h.forEach((entry, i)=>{
+    if(i>0){
+      const prev = h[i-1];
+      const dtHoras = (entry.t - prev.t) / 3600000;
+      const dVol = entry.vol - prev.vol;
+      const rate = dtHoras > 0 ? Math.max(0, dVol/dtHoras) : 0;
+      diuresisSeries.push(rate);
+    }
+  });
+
+  if(h.length){
+    const last = h[h.length-1];
+    volumen = last.vol;
+    temp = last.temp;
+    color = last.color;
+    diuresis = diuresisSeries.length ? diuresisSeries[diuresisSeries.length-1] : null;
+  }
+
+  return {
+    diuresis: diuresis,
+    volumen: volumen,
+    temp: temp,
+    color: color,
+    battPct: null, onBattery: false,
+    pesoKg: p.pesoKg,
+    history: diuresisSeries.length ? diuresisSeries : [0],
+    label: p.nombre,
+    bed: p.cama,
+    lastTime: h.length ? h[h.length-1].t : null,
+    manual: true,
+    readingsCount: h.length
+  };
+}
+
+function renderEmptyPatient(){
+  document.getElementById('bedTag').textContent = currentPatientId ? patients[currentPatientId].cama : '—';
+  document.getElementById('bedTag').classList.toggle('empty', !currentPatientId);
+  document.getElementById('patientName').textContent = currentPatientId ? patients[currentPatientId].nombre + ' — sin mediciones aún' : 'Ningún paciente seleccionado';
+  document.getElementById('patientMeta').textContent = currentPatientId ? `Peso ref: ${patients[currentPatientId].pesoKg} kg` : 'Agregá un paciente para empezar a registrar mediciones';
+  ['diuresisValue','tempValue','volValue'].forEach(id=>{});
+  document.getElementById('diuresisValue').innerHTML = '—';
+  document.getElementById('diuresisValue').className = 'hero-value na';
+  document.getElementById('diuresisTag').className = 'tag na'; document.getElementById('diuresisTag').textContent = 'SIN DATOS';
+  document.getElementById('diuresisSub').innerHTML = 'Cargá al menos dos mediciones para calcular la tasa horaria.';
+  document.getElementById('tempValue').innerHTML = '—'; document.getElementById('tempValue').className='value-md na';
+  document.getElementById('tempTag').className='tag na'; document.getElementById('tempTag').textContent='SIN DATOS';
+  document.getElementById('volValue').textContent = '0';
+  document.getElementById('volSince').textContent = '—';
+  document.getElementById('colorSwatch').style.background = 'rgb(60,68,76)';
+  document.getElementById('colorClass').textContent='—'; document.getElementById('colorRgb').textContent='—'; document.getElementById('colorHydration').textContent='—';
+  document.getElementById('alertBanner').classList.remove('show');
+  ['statOliguria','statTemp','statColor','statBatt'].forEach(id=>{ const el=document.getElementById(id); el.className='tag na'; el.textContent='—'; });
+  const ctx = document.getElementById('trendChart'); ctx.getContext('2d').clearRect(0,0,ctx.width,ctx.height);
+}
+
+// ---------------- RENDER GENÉRICO ----------------
+function renderDashboard(d){
+  const pesoKg = d.pesoKg || 72;
+  const umbral = 0.5 * pesoKg;
+
+  document.getElementById('bedTag').textContent = d.bed;
+  document.getElementById('bedTag').classList.remove('empty');
+  document.getElementById('patientName').textContent = d.label;
+  document.getElementById('patientMeta').textContent = `Peso ref: ${pesoKg} kg` + (d.manual ? ` · Lectura manual #${d.readingsCount}` : '');
+
+  const dEl = document.getElementById('diuresisValue');
+  const dTag = document.getElementById('diuresisTag');
+  const dCard = document.getElementById('cardDiuresis');
+  const dSub = document.getElementById('diuresisSub');
+  dSub.innerHTML = `Umbral KDIGO (${pesoKg} kg): <b>&lt; ${umbral.toFixed(0)} mL/h</b> sostenido &gt; 6 h`;
+
+  if(d.diuresis === null || d.diuresis === undefined){
+    dEl.innerHTML = '—'; dEl.className = 'hero-value na';
+    dTag.className = 'tag na'; dTag.textContent = 'SIN DATOS';
+    dCard.classList.remove('flagged');
+  } else {
+    dEl.innerHTML = `${d.diuresis.toFixed(0)}<span class="hero-unit">mL/h</span>`;
+    let status = 'ok';
+    if(d.diuresis < umbral) status='crit'; else if(d.diuresis < umbral*1.3) status='warn';
+    dEl.className = 'hero-value' + (status!=='ok' ? ' '+status : '');
+    dTag.className = 'tag '+status;
+    dTag.textContent = status==='crit' ? 'OLIGURIA' : status==='warn' ? 'VIGILAR' : 'NORMAL';
+    dCard.classList.toggle('flagged', status==='crit');
+  }
+
+  const tEl = document.getElementById('tempValue');
+  const tTag = document.getElementById('tempTag');
+  if(d.temp === null || d.temp === undefined){
+    tEl.innerHTML = '—'; tEl.className = 'value-md na';
+    tTag.className = 'tag na'; tTag.textContent = 'SIN DATOS';
+  } else {
+    tEl.innerHTML = `${d.temp.toFixed(1)}<span class="hero-unit">°C</span>`;
+    let tempStatus = (d.temp > 37.8) ? 'crit' : (d.temp > 37.4 ? 'warn' : 'ok');
+    tEl.className = 'value-md';
+    tEl.style.color = tempStatus==='ok' ? 'var(--amber)' : tempStatus==='warn' ? 'var(--amber)' : 'var(--red)';
+    tTag.className = 'tag '+tempStatus;
+    tTag.textContent = tempStatus==='crit' ? 'FIEBRE' : tempStatus==='warn' ? 'ELEVADA' : 'NORMAL';
+  }
+  document.getElementById('tempTime').textContent = d.lastTime ? d.lastTime.toLocaleTimeString('es-AR') : (d.manual===undefined ? 'hace instantes' : '—');
+
+  document.getElementById('volValue').textContent = (d.volumen||0).toFixed(0);
+  document.getElementById('volSince').textContent = d.manual ? (d.lastTime ? d.lastTime.toLocaleTimeString('es-AR') : '—') : '06:00';
+
+  const [r,g,b] = d.color;
+  document.getElementById('colorSwatch').style.background = `rgb(${r},${g},${b})`;
+  document.getElementById('colorRgb').textContent = `${r}, ${g}, ${b}`;
+  let colorStatus='ok', colorClass='Ámbar claro', hydration='adecuada';
+  if(r>140 && g<70 && b<70){ colorStatus='crit'; colorClass='Rojiza (posible hematuria)'; hydration='evaluar'; }
+  else if(r>150 && g<100){ colorStatus='warn'; colorClass='Ámbar oscuro'; hydration='evaluar'; }
+  else if(r>220 && g>210){ colorClass='Transparente / pálido'; }
+  document.getElementById('colorClass').textContent = colorClass;
+  document.getElementById('colorHydration').textContent = hydration;
+
+  const diuresisStatus = (d.diuresis===null||d.diuresis===undefined) ? 'na' : (d.diuresis<umbral?'crit':(d.diuresis<umbral*1.3?'warn':'ok'));
+  const tempStatus = (d.temp===null||d.temp===undefined) ? 'na' : (d.temp>37.8?'crit':(d.temp>37.4?'warn':'ok'));
+  setStat('statOliguria', diuresisStatus);
+  setStat('statTemp', tempStatus);
+  setStat('statColor', colorStatus);
+  if(d.battPct===null||d.battPct===undefined){ setStat('statBatt','na'); }
+  else{ setStat('statBatt', d.battPct<15?'crit':d.battPct<30?'warn':'ok'); }
+
+  const banner = document.getElementById('alertBanner');
+  const alertText = document.getElementById('alertText');
+  const alerts = [];
+  if(diuresisStatus==='crit') alerts.push('Oliguria sostenida: diuresis por debajo del umbral KDIGO (0,5 mL/kg/h).');
+  if(tempStatus==='crit') alerts.push('Temperatura vesical elevada — posible proceso febril.');
+  if(colorStatus==='crit') alerts.push('Coloración anómala detectada — posible hematuria.');
+  if(d.battPct!=null && d.battPct<15) alerts.push('Batería próxima al agotamiento.');
+  if(alerts.length){ banner.classList.add('show'); alertText.textContent = alerts.join('  ·  '); }
+  else{ banner.classList.remove('show'); }
+
+  if(d.battPct!=null){
+    document.getElementById('dotPower').classList.toggle('off', d.onBattery);
+    document.getElementById('powerLabel').textContent = d.onBattery ? 'Batería de respaldo' : 'Red eléctrica';
+    document.getElementById('battFill').style.width = d.battPct.toFixed(0)+'%';
+    document.getElementById('battFill').style.background = d.battPct<15?'var(--red)':d.battPct<30?'var(--amber)':'var(--green)';
+    document.getElementById('battPct').textContent = d.battPct.toFixed(0)+'%';
+  }
+
+  drawChart(d.history && d.history.length ? d.history : [0], umbral);
+}
+
+function setStat(id, status){
+  const el = document.getElementById(id);
+  el.className = 'tag ' + status;
+  el.textContent = status==='crit' ? 'ALERTA' : status==='warn' ? 'VIGILAR' : status==='na' ? '—' : 'OK';
+}
+
+function drawChart(history, umbral){
+  const canvas = document.getElementById('trendChart');
+  const dpr = window.devicePixelRatio || 1;
+  const cssWidth = canvas.clientWidth || 400;
+  const cssHeight = 120;
+  canvas.width = cssWidth*dpr; canvas.height = cssHeight*dpr;
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,cssWidth,cssHeight);
+
+  const max = Math.max(...history, umbral)*1.2 || 1;
+  const min = 0;
+  const padX = 4;
+  const stepX = history.length>1 ? (cssWidth-padX*2)/(history.length-1) : 0;
+
+  const thresholdY = cssHeight - ((umbral-min)/(max-min))*cssHeight;
+  ctx.strokeStyle='rgba(239,91,91,0.4)'; ctx.setLineDash([4,4]); ctx.lineWidth=1;
+  ctx.beginPath(); ctx.moveTo(0,thresholdY); ctx.lineTo(cssWidth,thresholdY); ctx.stroke(); ctx.setLineDash([]);
+
+  ctx.beginPath();
+  history.forEach((v,i)=>{ const x=padX+i*stepX; const y=cssHeight-((v-min)/(max-min))*cssHeight; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.lineTo(padX+(history.length-1)*stepX, cssHeight); ctx.lineTo(padX, cssHeight); ctx.closePath();
+  const grad = ctx.createLinearGradient(0,0,0,cssHeight);
+  grad.addColorStop(0,'rgba(57,214,192,0.25)'); grad.addColorStop(1,'rgba(57,214,192,0)');
+  ctx.fillStyle = grad; ctx.fill();
+
+  ctx.beginPath();
+  history.forEach((v,i)=>{ const x=padX+i*stepX; const y=cssHeight-((v-min)/(max-min))*cssHeight; if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.strokeStyle='#39d6c0'; ctx.lineWidth=2; ctx.stroke();
+
+  const lastV = history[history.length-1];
+  const lastX = padX+(history.length-1)*stepX;
+  const lastY = cssHeight-((lastV-min)/(max-min))*cssHeight;
+  ctx.beginPath(); ctx.arc(lastX,lastY,3.5,0,Math.PI*2); ctx.fillStyle='#39d6c0'; ctx.fill();
+}
+
+function tickClock(){ document.getElementById('clock').textContent = new Date().toLocaleTimeString('es-AR'); }
+
+setInterval(stepPilot, 1800);
+setInterval(tickClock, 1000);
+window.addEventListener('resize', ()=>{ if(activeTab==='piloto') renderDashboard(pilotState); else if(currentPatientId) renderDashboard(getPatientView(currentPatientId)); });
+
+renderDashboard(pilotState);
+tickClock();
+</script>
+
+</body>
+</html>
