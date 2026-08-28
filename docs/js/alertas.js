@@ -11,9 +11,17 @@
 
 var Alertas = (function () {
 
-  var activas = {};          // codigo -> alerta
+  var activas = {};          // codigo -> alerta ya confirmada (se ve en pantalla)
+  var pendientes = {};       // codigo -> { alerta, desde } candidata, todavía sin confirmar
+  var porResolver = {};      // codigo -> { desde } activa pero la condición ya no se cumple
   var ORDEN = { critica: 0, alta: 1, media: 2, tecnica: 3 };
   var oyentes = [];
+
+  /* Una lectura ruidosa aislada (temperatura, color) puede cruzar un umbral
+     por un instante y volver enseguida. Para no abrir y cerrar la misma
+     alerta —y hacer sonar la alarma— en cada muestra, una condición tiene
+     que sostenerse este tiempo antes de confirmarse o de darse por resuelta. */
+  var DEBOUNCE_MS = 6000;
 
   /* ------------------------- Reglas por cama ------------------------- */
   function reglas(m) {
@@ -118,6 +126,7 @@ var Alertas = (function () {
   /* --------------------- Ciclo de vida de la alerta ------------------ */
   function actualizar() {
     var vistas = {}, nuevas = [];
+    var ahora = Date.now();
     var camas = Modelo.camasVisibles();
 
     camas.forEach(function (c) {
@@ -125,6 +134,8 @@ var Alertas = (function () {
       if (m.vacio) return;
       reglas(m).forEach(function (al) {
         vistas[al.codigo] = true;
+        delete porResolver[al.codigo];   // sigue cumpliéndose: se cancela cualquier resolución pendiente
+
         var prev = activas[al.codigo];
         if (prev) {
           prev.titulo = al.titulo; prev.detalle = al.detalle;
@@ -132,24 +143,37 @@ var Alertas = (function () {
           if (ORDEN[al.nivel] < ORDEN[prev.nivel]) {
             prev.nivel = al.nivel; prev.reconocida = false; nuevas.push(prev);
           }
-        } else {
-          al.desde = Date.now();
-          al.reconocida = !!Modelo.estado.reconocidas[al.codigo];
-          activas[al.codigo] = al;
-          nuevas.push(al);
-          Modelo.registrarEvento(al.camaId, 'alerta', '[' + al.nivel.toUpperCase() + '] ' + al.titulo);
+          return;
         }
+
+        var cand = pendientes[al.codigo];
+        if (!cand) { pendientes[al.codigo] = { alerta: al, desde: ahora }; return; }
+        cand.alerta = al;   // se sostiene: se refresca el detalle por si tarda en confirmarse
+        if (ahora - cand.desde < DEBOUNCE_MS) return;   // todavía no se sostuvo lo suficiente
+
+        al.desde = ahora;
+        al.reconocida = !!Modelo.estado.reconocidas[al.codigo];
+        activas[al.codigo] = al;
+        nuevas.push(al);
+        delete pendientes[al.codigo];
+        Modelo.registrarEvento(al.camaId, 'alerta', '[' + al.nivel.toUpperCase() + '] ' + al.titulo);
       });
     });
 
-    // Se apagan las que ya no se cumplen.
+    // Una candidata que dejó de verse este ciclo no llegó a sostenerse: se descarta.
+    Object.keys(pendientes).forEach(function (cod) { if (!vistas[cod]) delete pendientes[cod]; });
+
+    // Se apagan (tras el tiempo de confirmación) las que ya no se cumplen.
     Object.keys(activas).forEach(function (cod) {
-      if (!vistas[cod]) {
-        var al = activas[cod];
-        Modelo.registrarEvento(al.camaId, 'alerta', 'Resuelta: ' + al.titulo);
-        delete activas[cod];
-        delete Modelo.estado.reconocidas[cod];
-      }
+      if (vistas[cod]) return;
+      var res = porResolver[cod];
+      if (!res) { porResolver[cod] = { desde: ahora }; return; }
+      if (ahora - res.desde < DEBOUNCE_MS) return;
+      var al = activas[cod];
+      Modelo.registrarEvento(al.camaId, 'alerta', 'Resuelta: ' + al.titulo);
+      delete activas[cod];
+      delete Modelo.estado.reconocidas[cod];
+      delete porResolver[cod];
     });
 
     // Sonido: sólo la más grave de las nuevas, y sólo si no está reconocida.
