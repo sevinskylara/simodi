@@ -139,9 +139,23 @@ var Alertas = (function () {
         var prev = activas[al.codigo];
         if (prev) {
           prev.titulo = al.titulo; prev.detalle = al.detalle;
-          // Un empeoramiento reabre la alerta aunque estuviera reconocida.
           if (ORDEN[al.nivel] < ORDEN[prev.nivel]) {
-            prev.nivel = al.nivel; prev.reconocida = false; nuevas.push(prev);
+            // Un empeoramiento reabre la alerta aunque estuviera reconocida.
+            prev.nivel = al.nivel; prev.reconocida = false;
+            delete Modelo.estado.reconocidas[al.codigo];
+            nuevas.push(prev);
+          } else if (prev.reconocida) {
+            // Sigue igual de mal: si ya pasó el tiempo de gracia de este
+            // nivel sin que nadie la haya resuelto, vuelve a sonar sola.
+            var reconocidaEn = Modelo.estado.reconocidas[al.codigo];
+            var ventanaMs = (CFG.umbrales.reAlertaMin[prev.nivel] || 60) * 60000;
+            if (reconocidaEn && (ahora - reconocidaEn) >= ventanaMs) {
+              prev.reconocida = false;
+              delete Modelo.estado.reconocidas[al.codigo];
+              nuevas.push(prev);
+              Modelo.registrarEvento(prev.camaId, 'alerta',
+                'Persiste: ' + prev.titulo + ' (reconocida hace ' + U.duracion(ahora - reconocidaEn) + ', sigue sin resolverse)');
+            }
           }
           return;
         }

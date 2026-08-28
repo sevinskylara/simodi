@@ -57,7 +57,12 @@ var CFG = {
 
     segundosSinDatos: 45,     // se considera "sin señal"
     minutosSinFlujo:  45,     // flujo ~0 sostenido ⇒ sospecha de obstrucción
-    flujoNuloMlH:     3       // por debajo de esto se considera flujo nulo
+    flujoNuloMlH:     3,      // por debajo de esto se considera flujo nulo
+
+    /* Re-alerta: reconocer una alerta la silencia, pero si el mismo problema
+       sigue sin resolverse pasado este tiempo, vuelve a sonar sola (no hace
+       falta que empeore). Cuanto más grave, antes insiste. */
+    reAlertaMin: { critica: 15, alta: 30, media: 60, tecnica: 120 }
   },
 
   /* ---------------- Escala colorimétrica de la orina ----------------
