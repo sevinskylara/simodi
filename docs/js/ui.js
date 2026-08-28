@@ -22,19 +22,23 @@ var UI = (function () {
     var camas = Modelo.camasVisibles();
     var ocupadas = camas.filter(function (c) { return c.pacienteId; });
     var alertas = Alertas.contarPorNivel();
-    var sinSenal = 0, enRiesgo = 0, mlKgHSuma = 0, mlKgHn = 0;
+    var sinSenal = 0, enRiesgo = 0, enObjetivo = 0, conDato = 0;
 
     ocupadas.forEach(function (c) {
       var m = Modelo.metricas(c);
       if (m.vacio) return;
       if (m.sinSenalSeg > CFG.umbrales.segundosSinDatos) sinSenal++;
       if (m.kdigo > 0) enRiesgo++;
-      if (m.mlKgH !== null) { mlKgHSuma += m.mlKgH; mlKgHn++; }
+      if (m.mlKgH !== null) {
+        conDato++;
+        if (claseTasa(m.mlKgH) === 'ok') enObjetivo++;
+      }
     });
 
     var items = [
       { rot: 'Camas ocupadas', val: ocupadas.length + ' / ' + camas.length, sub: (camas.length - ocupadas.length) + ' libres', clase: 'teal' },
-      { rot: 'Diuresis media', val: mlKgHn ? U.num(mlKgHSuma / mlKgHn, 2) : '—', sub: 'mL/kg/h · sala', clase: 'teal' },
+      { rot: 'En objetivo', val: conDato ? enObjetivo + ' / ' + conDato : '—',
+        sub: 'diuresis dentro de rango', clase: !conDato ? 'teal' : (enObjetivo === conDato ? 'ok' : (enObjetivo === 0 ? 'critico' : 'aviso')) },
       { rot: 'En riesgo (KDIGO)', val: String(enRiesgo), sub: 'con oliguria sostenida', clase: enRiesgo ? 'critico' : 'ok' },
       { rot: 'Alertas activas', val: String(alertas.critica + alertas.alta + alertas.media), sub: alertas.critica + ' críticas · ' + alertas.alta + ' altas', clase: (alertas.critica ? 'critico' : (alertas.alta ? 'aviso' : 'ok')) },
       { rot: 'Sin señal', val: String(sinSenal), sub: 'equipos a reconectar', clase: sinSenal ? 'aviso' : 'ok' }
