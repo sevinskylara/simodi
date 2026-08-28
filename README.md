@@ -43,14 +43,16 @@ momento desde "Asignar paciente" cuando entra o sale alguien de la cama.
 No hace falta instalar nada ni compilar nada: es HTML + CSS + JS puro.
 
 ```
-central/index.html   → abrir directo con doble clic, o servir la carpeta central/
+docs/index.html   → abrir directo con doble clic, o servir la carpeta docs/
 ```
+
+También está publicada con GitHub Pages: **https://sevinskylara.github.io/simodi/**
 
 Si el navegador bloquea algo por abrirlo como `file://` (pasa a veces con
 Bluetooth/USB), se puede levantar un servidor local sin instalar nada:
 
 ```bash
-cd central
+cd docs
 python -m http.server 8080
 # abrir http://localhost:8080
 ```
@@ -60,8 +62,11 @@ sólo si la página se sirve por `http://localhost` o `https://` (no por `file:/
 
 ## 4. Estructura del proyecto
 
+La app vive en `docs/` (no `app/` ni `central/`) porque GitHub Pages solo puede
+publicar desde la raíz del repo o desde una carpeta llamada exactamente `docs/`.
+
 ```
-central/
+docs/
   index.html            estructura de la página (barra superior, mural de camas, modales)
   css/estilos.css        todo el estilo (tema oscuro + tema claro)
   img/                    logo SÍMODI y favicons
@@ -110,7 +115,7 @@ dispositivo real**.
 
 - Todo el proyecto vive en este repo. Cada uno clona, edita y hace su commit.
 - Como no hay build ni dependencias, alcanza con editar los archivos de
-  `central/` y refrescar el navegador para ver los cambios.
+  `docs/` y refrescar el navegador para ver los cambios.
 - Se sugiere una rama por persona/feature y Pull Request a `main` para que el
   resto pueda revisar antes de mezclar (evita pisarse los cambios en `app.js`
   o `ui.js`, que son los archivos más compartidos).
