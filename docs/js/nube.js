@@ -126,7 +126,10 @@ var Nube = (function () {
 
   function agregarEvento(ev) {
     if (!db || aplicandoRemoto) return;
-    col('eventos').add({
+    // Se usa el mismo id que ya tiene localmente (en vez de uno generado acá):
+    // así, cuando este mismo escrito rebota de vuelta por el listener de abajo,
+    // se reconoce como "ya lo tengo" en lugar de duplicarse en la lista.
+    col('eventos').doc(ev.id).set({
       t: ev.t, camaId: ev.camaId || null, tipo: ev.tipo, texto: ev.texto, operador: ev.operador || null
     }).catch(function (e) { console.warn('Nube: evento no sincronizado', e); });
   }

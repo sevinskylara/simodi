@@ -248,7 +248,7 @@ var Modelo = (function () {
   /* ============================ Eventos ============================= */
 
   function registrarEvento(camaId, tipo, texto, dispId, operador) {
-    var ev = { t: Date.now(), camaId: camaId, tipo: tipo, texto: texto, operador: operador || null };
+    var ev = { id: U.id('ev'), t: Date.now(), camaId: camaId, tipo: tipo, texto: texto, operador: operador || null };
     E.eventos.push(ev);
     if (E.eventos.length > 400) E.eventos = E.eventos.slice(-300);
     if (dispId && E.dispositivos[dispId]) {
