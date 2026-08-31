@@ -1,0 +1,115 @@
+/* =========================================================
+   SÍMODI · Pantalla de autenticación
+   ========================================================= */
+
+.auth-pantalla {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #0b1016;
+  font-family: "IBM Plex Sans", sans-serif;
+}
+
+.auth-pantalla.oculto {
+  display: none;
+}
+
+.auth-caja {
+  width: min(390px, calc(100% - 40px));
+  background: #121922;
+  border: 1px solid #263241;
+  border-radius: 14px;
+  padding: 36px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35);
+}
+
+.auth-marca {
+  text-align: center;
+  margin-bottom: 30px;
+}
+
+.auth-logo {
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+  margin-bottom: 12px;
+}
+
+.auth-marca h1 {
+  margin: 0;
+  font-size: 30px;
+  letter-spacing: 0.08em;
+  color: #ffffff;
+}
+
+.auth-marca p {
+  margin: 7px 0 0;
+  color: #8e9baa;
+  font-size: 13px;
+}
+
+.auth-campo {
+  margin-bottom: 18px;
+}
+
+.auth-campo label {
+  display: block;
+  color: #b5c0cb;
+  font-size: 13px;
+  margin-bottom: 7px;
+}
+
+.auth-campo input {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px 13px;
+  border-radius: 7px;
+  border: 1px solid #344252;
+  background: #0d141c;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.auth-campo input:focus {
+  border-color: #50a8c7;
+}
+
+.auth-boton {
+  width: 100%;
+  border: 0;
+  border-radius: 7px;
+  padding: 13px;
+  margin-top: 4px;
+  background: #2d8eae;
+  color: white;
+  font-family: inherit;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.auth-boton:hover {
+  filter: brightness(1.08);
+}
+
+.auth-error {
+  min-height: 20px;
+  margin: 15px 0 0;
+  color: #ef7777;
+  font-size: 12px;
+  text-align: center;
+}
+
+.auth-pie {
+  margin-top: 25px;
+  padding-top: 18px;
+  border-top: 1px solid #263241;
+  text-align: center;
+  color: #667585;
+  font-size: 11px;
+}

@@ -14,8 +14,57 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="css/estilos.css">
+<link rel="stylesheet" href="css/auth.css">
 </head>
 <body>
+
+<!-- ========================= AUTENTICACIÓN ========================= -->
+
+<div class="auth-pantalla" id="authPantalla">
+  <div class="auth-caja">
+
+    <div class="auth-marca">
+      <img src="img/simodi-icono.png" alt="SÍMODI" class="auth-logo">
+      <h1>SÍMODI</h1>
+      <p>Sistema Inteligente de Monitoreo de Diuresis</p>
+    </div>
+
+    <form id="formLogin">
+
+      <div class="auth-campo">
+        <label for="authEmail">Correo electrónico</label>
+        <input
+          type="email"
+          id="authEmail"
+          autocomplete="username"
+          required
+        >
+      </div>
+
+      <div class="auth-campo">
+        <label for="authPassword">Contraseña</label>
+        <input
+          type="password"
+          id="authPassword"
+          autocomplete="current-password"
+          required
+        >
+      </div>
+
+      <button type="submit" class="auth-boton" id="btnLogin">
+        INGRESAR
+      </button>
+
+      <p class="auth-error" id="authError"></p>
+
+    </form>
+
+    <div class="auth-pie">
+      Acceso exclusivo para personal autorizado
+    </div>
+
+  </div>
+</div>
 
 <!-- ============================ BARRA SUPERIOR ============================ -->
 <header class="barra">
@@ -65,6 +114,13 @@
         <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V1a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17 2.6a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1.2z"/>
       </svg>
     </button>
+    <button class="ico-btn" id="btnCerrarSesion" title="Cerrar sesión" aria-label="Cerrar sesión">
+  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M10 17l5-5-5-5"/>
+    <path d="M15 12H3"/>
+    <path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/>
+  </svg>
+</button>
   </div>
 </header>
 
@@ -253,6 +309,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>  
 <script src="js/config.js"></script>
 <script src="js/util.js"></script>
 <script src="js/operador.js"></script>
@@ -265,5 +322,6 @@
 <script src="js/graficos.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
+<script src="js/auth.js"></script>
 </body>
 </html>
