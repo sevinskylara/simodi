@@ -194,6 +194,22 @@
         });
 
     };
+/* ================= BOTÓN CERRAR SESIÓN ================= */
 
+var botonCerrarSesion =
+  document.getElementById('btnCerrarSesion');
+
+if (botonCerrarSesion) {
+
+  botonCerrarSesion.addEventListener(
+    'click',
+    function () {
+
+      window.cerrarSesionSimodi();
+
+    }
+  );
+
+}
 
 })();
