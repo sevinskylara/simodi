@@ -35,8 +35,8 @@
   --neutro-tenue:rgba(123,139,153,0.13);
 
   --sombra:0 8px 30px rgba(0,0,0,.45);
-  --fuente:'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --mono:'IBM Plex Mono', ui-monospace, 'Cascadia Code', Consolas, monospace;
+  --fuente:'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono:'Roboto Mono', ui-monospace, Consolas, monospace;
   --r:12px;
 }
 
