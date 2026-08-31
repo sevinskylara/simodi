@@ -17,6 +17,54 @@
 </head>
 <body>
 
+<!-- ========================= AUTENTICACIÓN ========================= -->
+
+<div class="auth-pantalla" id="authPantalla">
+  <div class="auth-caja">
+
+    <div class="auth-marca">
+      <img src="img/simodi-icono.png" alt="SÍMODI" class="auth-logo">
+      <h1>SÍMODI</h1>
+      <p>Sistema Inteligente de Monitoreo de Diuresis</p>
+    </div>
+
+    <form id="formLogin">
+
+      <div class="auth-campo">
+        <label for="authEmail">Correo electrónico</label>
+        <input
+          type="email"
+          id="authEmail"
+          autocomplete="username"
+          required
+        >
+      </div>
+
+      <div class="auth-campo">
+        <label for="authPassword">Contraseña</label>
+        <input
+          type="password"
+          id="authPassword"
+          autocomplete="current-password"
+          required
+        >
+      </div>
+
+      <button type="submit" class="auth-boton" id="btnLogin">
+        INGRESAR
+      </button>
+
+      <p class="auth-error" id="authError"></p>
+
+    </form>
+
+    <div class="auth-pie">
+      Acceso exclusivo para personal autorizado
+    </div>
+
+  </div>
+</div>
+
 <!-- ============================ BARRA SUPERIOR ============================ -->
 <header class="barra">
   <div class="marca">
