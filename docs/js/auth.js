@@ -33,4 +33,63 @@
     }
   };
 
+/* ================= FORMULARIO DE LOGIN ================= */
+
+var formulario = document.getElementById('formLogin');
+var pantalla = document.getElementById('authPantalla');
+var emailInput = document.getElementById('authEmail');
+var passwordInput = document.getElementById('authPassword');
+var errorLogin = document.getElementById('authError');
+var botonLogin = document.getElementById('btnLogin');
+
+if (formulario) {
+
+  formulario.addEventListener('submit', function (e) {
+
+    e.preventDefault();
+
+    errorLogin.textContent = '';
+    botonLogin.disabled = true;
+    botonLogin.textContent = 'INGRESANDO...';
+
+    auth.signInWithEmailAndPassword(
+      emailInput.value.trim(),
+      passwordInput.value
+    )
+    .catch(function () {
+
+      errorLogin.textContent = 'Correo o contraseña incorrectos.';
+      botonLogin.disabled = false;
+      botonLogin.textContent = 'INGRESAR';
+
+    });
+
+  });
+
+}
+
+
+/* =============== COMPROBAR SI HAY USUARIO =============== */
+
+auth.onAuthStateChanged(function (usuario) {
+
+  if (usuario) {
+
+    /* Login correcto: ocultamos la pantalla */
+    pantalla.classList.add('oculto');
+
+  } else {
+
+    /* Sin usuario: mostramos el login */
+    pantalla.classList.remove('oculto');
+
+    if (botonLogin) {
+      botonLogin.disabled = false;
+      botonLogin.textContent = 'INGRESAR';
+    }
+
+  }
+
+});
+   
 })();
