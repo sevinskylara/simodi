@@ -12,6 +12,7 @@ var UI = (function () {
   var camaAbierta = null;     // id de la cama mostrada en el modal de detalle
   var rangoHoras = 6;
   var tabDetalle = 'tendencias';
+  var codigoSilenciar = null; // código de la alerta a la que se le está por elegir motivo de silencio
   var filtroTexto = '';
   var filtroEstado = 'todas';
   var orden = 'cama';
@@ -234,6 +235,14 @@ var UI = (function () {
 
   /* ============================ ALERTAS LATERAL ========================= */
 
+  var NIVEL_ORDEN = ['critica', 'alta', 'media', 'tecnica'];
+  function vibrarPanelAlertas() {
+    var panel = U.$('.panel-alertas');
+    panel.classList.remove('vibrar');
+    void panel.offsetWidth;   // fuerza reflow para poder re-disparar la animación
+    panel.classList.add('vibrar');
+    setTimeout(function () { panel.classList.remove('vibrar'); }, 450);
+  }
   function pintarAlertas() {
     var lista = Alertas.lista();
     var activasNoRec = lista.filter(function (a) { return !a.reconocida; });
@@ -241,19 +250,34 @@ var UI = (function () {
     cont.textContent = activasNoRec.length;
     cont.classList.toggle('activo', activasNoRec.length > 0);
 
+    var panel = U.$('.panel-alertas');
+    var conteos = Alertas.contarPorNivel();
+    var peor = NIVEL_ORDEN.find(function (n) { return conteos[n] > 0; });
+    NIVEL_ORDEN.forEach(function (n) { panel.classList.toggle('nivel-' + n, n === peor); });
+
     var el = U.$('#listaAlertas');
     if (!lista.length) { el.innerHTML = '<div class="vacio">Sin alertas activas. Todo dentro de rango.</div>'; return; }
     el.innerHTML = '';
     lista.forEach(function (a) {
+      var silInfo = Modelo.estado.reconocidas[a.codigo];
+      var etiquetaSilencio = silInfo ? (silInfo.motivo === 'atendido' ? 'paciente atendido' : 'en espera') : '';
       var it = U.el('div', 'item-alerta ' + a.nivel + (a.reconocida ? ' reconocida' : ''));
       it.innerHTML =
         '<div class="franja"></div>' +
         '<div class="alerta-cuerpo">' +
           '<div class="alerta-titulo"><span class="cama-ref">' + U.esc(a.ref) + '</span>' + U.esc(a.titulo) + '</div>' +
           '<div class="alerta-detalle">' + U.esc(a.detalle) + '</div>' +
-          '<div class="alerta-tiempo">' + U.desde(a.desde) + (a.reconocida ? ' · reconocida' : '') + '</div>' +
+          '<div class="alerta-tiempo">' + U.desde(a.desde) + (a.reconocida ? ' · silenciada (' + etiquetaSilencio + ')' : '') + '</div>' +
+          (a.reconocida ? '' : '<button class="btn-silenciar" data-codigo="' + U.esc(a.codigo) + '" data-titulo="' + U.esc(a.titulo) + '">Silenciar</button>') +
         '</div>';
       it.onclick = function () { abrirDetalle(a.camaId); };
+      var btn = it.querySelector('.btn-silenciar');
+      if (btn) {
+        btn.onclick = function (ev) {
+          ev.stopPropagation();
+          pedirSilenciar(btn.dataset.codigo, btn.dataset.titulo);
+        };
+      }
       el.appendChild(it);
     });
   }
@@ -264,7 +288,8 @@ var UI = (function () {
     if (!ev.length) { el.innerHTML = '<div class="vacio">Sin eventos todavía.</div>'; return; }
     el.innerHTML = ev.map(function (e) {
       var cama = e.camaId ? Modelo.buscarCama(e.camaId) : null;
-      return '<div class="item-evento"><span class="hora">' + U.hora(e.t) + '</span><span>' +
+      var reciente = e.tipo === 'silencio' && (Date.now() - e.t) < 6000;
+      return '<div class="item-evento' + (reciente ? ' silencio-reciente' : '') + '"><span class="hora">' + U.hora(e.t) + '</span><span>' +
         (cama ? '<b style="color:var(--texto)">' + U.esc(cama.etiqueta) + '</b> · ' : '') +
         (e.operador ? '<span class="ev-operador">' + U.esc(e.operador) + '</span> — ' : '') +
         U.esc(e.texto) + '</span></div>';
@@ -447,7 +472,7 @@ var UI = (function () {
       resVal('Diuresis (1 h)', (m.mlH === null ? '—' : U.num(m.mlH, 0) + ' <small>mL/h</small>'), m.mlKgH !== null ? U.num(m.mlKgH, 2) + ' mL/kg/h' : '', claseTasa(m.mlKgH)) +
       resVal('Diuresis (6 h)', (m.mlH6 === null ? '—' : U.num(m.mlKgH6, 2) + ' <small>mL/kg/h</small>'), 'promedio de las últimas 6 h', claseTasa(m.mlKgH6)) +
       resVal('Temperatura', (m.tempC === null ? '—' : U.num(m.tempC, 1) + ' <small>°C</small>'), 'máx. 6 h: ' + (m.tempMax6h !== null ? U.num(m.tempMax6h, 1) + ' °C' : '—'), claseTemp(m.tempC)) +
-      resVal('Color', m.color ? U.esc(m.color.nombre) : '—', m.color ? m.color.hidratacion : '', m.color && m.color.anomalo ? 'critico' : 'ok') +
+      resVal('Color', m.color ? U.esc(m.color.nombre) : '—', m.color ? m.color.hidratacion : '', m.color ? m.color.estado : '') +
       resVal('Volumen acumulado', U.num(m.volTotalMl, 0) + ' <small>mL</small>', 'desde el alta del dispositivo', '') +
       resVal('Estado renal', kdigoTxt, m.horasOliguria ? m.horasOliguria + ' h por debajo de 0,5 mL/kg/h' : 'diuresis dentro de objetivo', kdigoClase);
   }
@@ -495,6 +520,13 @@ var UI = (function () {
     return 'rgba(' + rgb.join(',') + ',' + a + ')';
   }
 
+  function duracionBateria(d) {
+    var horas = Modelo.horasBateriaRestante(d);
+    if (horas === null) return 'estimando autonomía…';
+    var prefijo = d.estado === 'en-linea' ? '' : 'incomunicado · ';
+    return prefijo + '~' + U.duracion(horas * 3600000) + ' de autonomía restante';
+  }
+
   function renderDispositivo(m) {
     var d = m.dispositivo;
     var e = d.tipo === 'sim' ? null : Conexion.estado();
@@ -502,7 +534,7 @@ var UI = (function () {
       resVal('N.º de serie', '<span style="font-family:var(--mono)">' + U.esc(d.serie) + '</span>', d.tipo === 'sim' ? 'dispositivo piloto (simulado)' : 'dispositivo real', '') +
       resVal('Estado del enlace', d.estado === 'en-linea' ? 'En línea' : 'Sin señal', U.desde(d.ultimoContacto || d.reloj), d.estado === 'en-linea' ? 'ok' : 'critico') +
     '</div><div class="fila">' +
-      resVal('Batería', Math.round(d.bat) + ' <small>%</small>', '', d.bat <= CFG.umbrales.bateriaBaja ? 'aviso' : 'ok') +
+      resVal('Batería', Math.round(d.bat) + ' <small>%</small>', duracionBateria(d), d.bat <= CFG.umbrales.bateriaBaja ? 'critico' : 'ok') +
       resVal('Señal (RSSI)', Math.round(d.rssi) + ' <small>dBm</small>', d.tipo === 'sim' ? 'simulado' : (e ? e.tipo : '—'), '') +
     '</div>';
 
@@ -512,7 +544,7 @@ var UI = (function () {
         '<p class="nota"><b style="color:var(--texto)">' + U.esc(esc ? esc.nombre : d.escenario) + '</b> — ' + U.esc(esc ? esc.resumen : '') + '</p>' +
         '<div class="campo"><label>Cambiar escenario</label><select id="selEscenarioDet"></select></div>' +
         '<div class="acciones"><button class="btn secundario chico" id="btnAplicarEscenario">Aplicar (mantiene el historial)</button>' +
-        '<button class="btn chico" id="btnReiniciarEscenario">Reiniciar con 8 h de historial nuevo</button></div>';
+        '<button class="btn chico" id="btnReiniciarEscenario">Reiniciar con 26 h de historial nuevo</button></div>';
     }
 
     html += '<div class="sep"></div><div class="subtitulo">Calibración</div>' +
@@ -677,6 +709,63 @@ var UI = (function () {
     U.$('#modalAsignar').setAttribute('aria-hidden', 'true');
   }
 
+  /* ============================ MODAL TRASLADAR ============================ */
+
+  function abrirTrasladar(camaId) {
+    var cama = Modelo.buscarCama(camaId);
+    if (!cama || !cama.pacienteId) return;
+    var p = Modelo.estado.pacientes[cama.pacienteId];
+    U.$('#trasTitulo').textContent = 'Trasladar a ' + (p ? p.nombre : 'paciente');
+    var libres = Modelo.camasLibres();
+    var el = U.$('#listaCamasLibres');
+    if (!libres.length) {
+      el.innerHTML = '<p class="nota">No hay camas libres para trasladar.</p>';
+    } else {
+      el.innerHTML = libres.map(function (c) {
+        return '<div class="disp-opcion" data-cama="' + U.esc(c.id) + '">' +
+          '<div><div class="serie">' + U.esc(c.etiqueta) + '</div><div class="desc">Cama libre</div></div>' +
+        '</div>';
+      }).join('');
+      U.$$('.disp-opcion', el).forEach(function (op) {
+        op.onclick = function () {
+          if (Acciones.trasladarPaciente(camaId, op.dataset.cama)) {
+            cerrarTrasladar();
+            abrirDetalle(op.dataset.cama);
+          }
+        };
+      });
+    }
+    U.$('#modalTrasladar').classList.add('abierto');
+    U.$('#modalTrasladar').setAttribute('aria-hidden', 'false');
+  }
+  function cerrarTrasladar() {
+    U.$('#modalTrasladar').classList.remove('abierto');
+    U.$('#modalTrasladar').setAttribute('aria-hidden', 'true');
+  }
+
+  /* ============================ MODAL SILENCIAR =========================== */
+
+  function pedirSilenciar(codigo, titulo) {
+    if (Operador.actual() === 'Invitado') {
+      toast('Para silenciar alarmas hace falta identificarse con un nombre.', 'error');
+      return;
+    }
+    codigoSilenciar = codigo;
+    U.$('#silTitulo').textContent = '"' + titulo + '"';
+    U.$('#modalSilenciar').classList.add('abierto');
+    U.$('#modalSilenciar').setAttribute('aria-hidden', 'false');
+  }
+  function cerrarSilenciar() {
+    codigoSilenciar = null;
+    U.$('#modalSilenciar').classList.remove('abierto');
+    U.$('#modalSilenciar').setAttribute('aria-hidden', 'true');
+  }
+  function confirmarSilenciar(motivo) {
+    if (!codigoSilenciar) return;
+    Acciones.silenciarAlerta(codigoSilenciar, motivo);
+    cerrarSilenciar();
+  }
+
   /* ============================ MODAL CONFIG ============================= */
 
   function abrirConfig() {
@@ -826,11 +915,19 @@ var UI = (function () {
       };
     });
     U.$('#btnAsignarDesdeDetalle').onclick = function () { if (camaAbierta) abrirAsignar(camaAbierta); };
+    U.$('#btnTrasladar').onclick = function () { if (camaAbierta) abrirTrasladar(camaAbierta); };
+    U.$('#btnCerrarTrasladar').onclick = cerrarTrasladar;
+    U.$('#modalTrasladar').addEventListener('click', function (ev) { if (ev.target.id === 'modalTrasladar') cerrarTrasladar(); });
     U.$('#btnVaciarBolsa').onclick = function () { if (camaAbierta) Acciones.vaciarBolsa(camaAbierta); };
     U.$('#btnExportar').onclick = function () { if (camaAbierta) Acciones.exportarCamaCsv(camaAbierta); };
 
     U.$('#btnCerrarAsignar').onclick = cerrarAsignar;
     U.$('#modalAsignar').addEventListener('click', function (ev) { if (ev.target.id === 'modalAsignar') cerrarAsignar(); });
+
+    U.$('#btnCerrarSilenciar').onclick = cerrarSilenciar;
+    U.$('#modalSilenciar').addEventListener('click', function (ev) { if (ev.target.id === 'modalSilenciar') cerrarSilenciar(); });
+    U.$('#btnSilenciarAtendido').onclick = function () { confirmarSilenciar('atendido'); };
+    U.$('#btnSilenciarEspera').onclick = function () { confirmarSilenciar('espera'); };
 
     U.$('#chipOperador').onclick = abrirOperador;
     U.$('#btnGuardarOperador').onclick = guardarOperador;
@@ -844,10 +941,13 @@ var UI = (function () {
     U.$('#modalOperador').addEventListener('click', function (ev) { if (ev.target.id === 'modalOperador') cerrarOperador(); });
 
     document.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape') { cerrarDetalle(); cerrarAsignar(); cerrarConfig(); cerrarOperador(); }
+      if (ev.key === 'Escape') { cerrarDetalle(); cerrarAsignar(); cerrarConfig(); cerrarOperador(); cerrarSilenciar(); cerrarTrasladar(); }
     });
 
-    Alertas.alCambiar(function () { pintarAlertas(); });
+    Alertas.alCambiar(function (nuevas) {
+      pintarAlertas();
+      if (nuevas && nuevas.length) vibrarPanelAlertas();
+    });
     Conexion.alCambiar(function () { pintarBarraEstado(); });
   }
 

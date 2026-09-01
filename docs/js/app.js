@@ -100,6 +100,42 @@ var Acciones = (function () {
   }
 
 
+  function trasladarPaciente(origenId, destinoId) {
+    var ok = Modelo.trasladarPaciente(origenId, destinoId, Operador.actual());
+    if (!ok) { UI.toast('No se pudo trasladar: la cama destino ya no está libre.', 'error'); return false; }
+    guardar();
+    UI.pintarTodo();
+    UI.toast('Paciente trasladado a ' + Modelo.buscarCama(destinoId).etiqueta);
+    return true;
+  }
+
+
+  /* ------------------------------ Alertas -------------------------------- */
+
+  /* Silenciar una alerta reprograma su reaparición según el motivo elegido
+     (ver CFG.umbrales.reAlertaMin) y deja constancia de quién lo hizo. No
+     está disponible para invitados: sin nombre cargado no hay a quién
+     imputar la decisión clínica de posponer una alarma. */
+  function silenciarAlerta(codigo, motivo) {
+    if (Operador.actual() === 'Invitado') {
+      UI.toast('Para silenciar alarmas hace falta identificarse con un nombre.', 'error');
+      return false;
+    }
+
+    var al = Alertas.silenciar(codigo, motivo);
+    if (!al) return false;
+
+    var etiqueta = motivo === 'atendido' ? 'paciente atendido' : 'paciente en espera';
+    Modelo.registrarEvento(al.camaId, 'silencio',
+      Operador.actual() + ' silenció "' + al.titulo + '" · ' + etiqueta, null, Operador.actual());
+
+    guardar();
+    UI.pintarTodo();
+    UI.toast('Alerta silenciada · ' + etiqueta);
+    return true;
+  }
+
+
   /* ------------------------------ Exportar CSV -------------------------- */
 
   function filaCsv(cama, d, m) {
@@ -224,6 +260,8 @@ var Acciones = (function () {
     agregarCama: agregarCama,
     cambiarEscenario: cambiarEscenario,
     vaciarBolsa: vaciarBolsa,
+    trasladarPaciente: trasladarPaciente,
+    silenciarAlerta: silenciarAlerta,
     exportarCamaCsv: exportarCamaCsv,
     exportarTodoCsv: exportarTodoCsv
   };

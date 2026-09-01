@@ -162,14 +162,21 @@ body{
 
 /* =============================== CUERPO =============================== */
 .cuerpo{
-  display:grid; grid-template-columns:1fr 320px; gap:14px;
+  display:grid; grid-template-columns:1fr 320px; grid-template-rows:auto 1fr; gap:14px;
   padding:14px 20px 24px; align-items:start;
 }
-@media (max-width:1180px){ .cuerpo{ grid-template-columns:1fr; } }
+.mural-zona{ display:contents; }
+.mural-head{ grid-column:1; grid-row:1; }
+.mural{ grid-column:1; grid-row:2; }
+.lateral{ grid-column:2; grid-row:2; }
+@media (max-width:1180px){
+  .cuerpo{ grid-template-columns:1fr; grid-template-rows:none; }
+  .mural-head, .mural, .lateral{ grid-column:auto; grid-row:auto; }
+}
 
 .mural-head{
   display:flex; align-items:center; justify-content:space-between; gap:12px;
-  flex-wrap:wrap; margin-bottom:12px;
+  flex-wrap:wrap;
 }
 .mural-head h2{ font-size:15px; font-weight:600; display:flex; align-items:center; gap:9px; }
 .conteo{
@@ -307,17 +314,30 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal
 .panel-alertas, .panel-eventos{
   background:var(--panel); border:1px solid var(--borde); border-radius:var(--r); overflow:hidden;
 }
+.panel-alertas{ border-width:2px; transition:border-color .25s; }
+.panel-alertas.nivel-tecnica{ border-color:var(--neutro); }
+.panel-alertas.nivel-media{ border-color:var(--aviso); }
+.panel-alertas.nivel-alta{ border-color:var(--grave); }
+.panel-alertas.nivel-critica{ border-color:var(--critico); animation:latido 1.6s infinite; }
+@keyframes vibrarPanel{
+  0%,100%{ transform:translateX(0); }
+  20%{ transform:translateX(-5px); }
+  40%{ transform:translateX(5px); }
+  60%{ transform:translateX(-3px); }
+  80%{ transform:translateX(3px); }
+}
+.panel-alertas.vibrar{ animation:vibrarPanel .4s ease; }
 .panel-alertas > header, .panel-eventos > header{
   display:flex; align-items:center; justify-content:space-between;
   padding:12px 15px; border-bottom:1px solid var(--borde-suave);
 }
-.panel-alertas h3, .panel-eventos h3{ font-size:12.5px; font-weight:600; letter-spacing:.02em; }
+.panel-alertas h3, .panel-eventos h3{ font-size:13.5px; font-weight:700; letter-spacing:.02em; }
 .contador{
   font-family:var(--mono); font-size:11px; font-weight:700; min-width:22px; text-align:center;
   padding:2px 7px; border-radius:20px; background:var(--neutro-tenue); color:var(--texto-dim);
 }
 .contador.activo{ background:var(--critico); color:#fff; }
-.lista-alertas{ max-height:44vh; overflow-y:auto; }
+.lista-alertas{ max-height:60vh; overflow-y:auto; }
 .lista-eventos{ max-height:26vh; overflow-y:auto; padding:4px 0; }
 
 .item-alerta{
@@ -336,12 +356,23 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal
 .alerta-detalle{ font-size:11.5px; color:var(--texto-dim); margin-top:3px; line-height:1.45; }
 .alerta-tiempo{ font-family:var(--mono); font-size:10px; color:var(--texto-tenue); margin-top:4px; }
 .item-alerta.reconocida{ opacity:.5; }
+.btn-silenciar{
+  font-family:var(--mono); font-size:10.5px; font-weight:600; letter-spacing:.02em;
+  color:var(--texto-dim); background:var(--panel-3); border:1px solid var(--borde);
+  border-radius:6px; padding:4px 9px; margin-top:7px; cursor:pointer; transition:.15s;
+}
+.btn-silenciar:hover{ color:var(--texto); border-color:var(--teal); }
 
 .item-evento{
   padding:7px 15px; font-size:11.5px; color:var(--texto-dim); display:flex; gap:9px; line-height:1.4;
 }
 .item-evento .hora{ font-family:var(--mono); font-size:10.5px; color:var(--texto-tenue); flex-shrink:0; }
 .ev-operador{ color:var(--teal); font-weight:600; }
+/* Un evento de "silenciar alarma" llama la atención sólo al aparecer;
+   pasado ese ratito queda visualmente igual a cualquier otro evento. */
+.item-evento.silencio-reciente{
+  background:var(--aviso-tenue); border-left:2px solid var(--aviso); animation:latido 1s 3;
+}
 .vacio{ padding:22px 15px; text-align:center; color:var(--texto-tenue); font-size:12px; }
 
 /* =============================== MODALES ============================== */
