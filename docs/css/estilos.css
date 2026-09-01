@@ -233,7 +233,7 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal
   background:var(--panel); border:1px solid var(--borde); border-radius:var(--r);
   padding:0; overflow:hidden; cursor:pointer; transition:border-color .15s, transform .12s;
   display:flex; flex-direction:column; position:relative;
-  flex:1 1 335px; max-width:780px;
+  flex:1 1 335px; max-width:var(--ancho-doble, 780px);
 }
 .cama:hover{ border-color:var(--teal); transform:translateY(-1px); }
 .cama::before{

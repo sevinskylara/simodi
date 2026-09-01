@@ -128,6 +128,8 @@ var UI = (function () {
     } else {
       filas.forEach(function (f) { mural.appendChild(tarjetaCama(f.cama, f.m, f.estado)); });
     }
+    alinearAnchoFilaIncompleta();
+
     // El panel de alertas y el de eventos se alinean al mural en cada
     // repintado, no sólo en pintarTodo(): si sólo se repinta el mural
     // (buscar/filtrar/ordenar) su cantidad de filas puede cambiar sin que
@@ -135,6 +137,33 @@ var UI = (function () {
     // parecería (engañosamente) que la lista de alertas está filtrada
     // junto con las camas.
     igualarAlturasLateral();
+  }
+
+  /* Cuando la última fila queda incompleta, sus tarjetas crecen con
+     flex-grow para no dejar un hueco vacío a la derecha (ver .mural en
+     estilos.css) — pero antes tenían un max-width fijo (780px) que sólo
+     aproximaba "el ancho de dos tarjetas", sin coincidir exactamente con
+     el borde real de la 2.ª columna en cada resolución. Se mide el ancho
+     real de una columna en una fila completa y se fija --ancho-doble a
+     ese valor exacto (2 columnas + el gap entre ellas), para que el
+     borde derecho de una tarjeta que creció quede alineado con el de la
+     2.ª tarjeta de la fila de arriba. */
+  function alinearAnchoFilaIncompleta() {
+    var mural = U.$('#mural');
+    var hijos = U.$$('.cama', mural);
+    if (!hijos.length) return;
+    var gap = parseFloat(getComputedStyle(mural).columnGap) || 13;
+    var filas = [];
+    hijos.forEach(function (el) {
+      var top = el.offsetTop;
+      var fila = filas.filter(function (f) { return Math.abs(f.top - top) < 1; })[0];
+      if (!fila) { fila = { top: top, elems: [] }; filas.push(fila); }
+      fila.elems.push(el);
+    });
+    var filaCompleta = filas.filter(function (f) { return f.elems.length > 1; })[0];
+    if (!filaCompleta) return;
+    var anchoColumna = filaCompleta.elems[0].getBoundingClientRect().width;
+    mural.style.setProperty('--ancho-doble', Math.round(anchoColumna * 2 + gap) + 'px');
   }
 
   function tarjetaCama(cama, m, estado) {
