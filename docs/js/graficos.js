@@ -152,8 +152,10 @@ var Graf = (function () {
 
     var pesoKg = opts.pesoKg || null;
     var umbral = opts.umbralMlH || null;
+    var umbralPoli = opts.umbralPoliuriaMlH || null;
     var max = Math.max.apply(null, buckets.map(function (b) { return b.mlH; }));
     if (umbral) max = Math.max(max, umbral * 1.6);
+    if (umbralPoli) max = Math.max(max, umbralPoli * 1.15);
     max = Math.max(max * 1.15, 10);
 
     grilla(ctx, w, h, pad, max, 0, 3, function (v) { return Math.round(v); });
@@ -196,6 +198,17 @@ var Graf = (function () {
       ctx.fillStyle = css('--critico'); ctx.font = '10px ' + css('--mono');
       ctx.textAlign = 'left'; ctx.textBaseline = 'bottom';
       ctx.fillText(U.num(umbral, 0) + ' mL/h', pad.l + 4, yU - 3);
+    }
+
+    if (umbralPoli) {
+      var yP = h - pad.b - (umbralPoli / max) * (h - pad.t - pad.b);
+      ctx.strokeStyle = css('--aviso'); ctx.lineWidth = 1.5;
+      ctx.setLineDash([5, 4]);
+      ctx.beginPath(); ctx.moveTo(pad.l, yP); ctx.lineTo(w - pad.r, yP); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = css('--aviso'); ctx.font = '10px ' + css('--mono');
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      ctx.fillText(U.num(umbralPoli, 0) + ' mL/h', pad.l + 4, yP + 3);
     }
 
     ejeTiempo(ctx, w, h, pad, buckets[0].t0, buckets[buckets.length - 1].t1, Math.min(6, buckets.length));

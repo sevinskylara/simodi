@@ -145,16 +145,20 @@ var Alertas = (function () {
             delete Modelo.estado.reconocidas[al.codigo];
             nuevas.push(prev);
           } else if (prev.reconocida) {
-            // Sigue igual de mal: si ya pasó el tiempo de gracia de este
-            // nivel sin que nadie la haya resuelto, vuelve a sonar sola.
-            var reconocidaEn = Modelo.estado.reconocidas[al.codigo];
-            var ventanaMs = (CFG.umbrales.reAlertaMin[prev.nivel] || 60) * 60000;
-            if (reconocidaEn && (ahora - reconocidaEn) >= ventanaMs) {
+            // Sigue igual de mal: si ya pasó el tiempo de gracia elegido al
+            // silenciarla sin que nadie la haya resuelto, vuelve a sonar sola.
+            var silencio = Modelo.estado.reconocidas[al.codigo];
+            var ventanas = CFG.umbrales.reAlertaMin[prev.nivel] || {};
+            var motivo = (silencio && silencio.motivo) || 'espera';
+            var ventanaMs = (ventanas[motivo] || 60) * 60000;
+            if (silencio && (ahora - silencio.en) >= ventanaMs) {
               prev.reconocida = false;
               delete Modelo.estado.reconocidas[al.codigo];
               nuevas.push(prev);
               Modelo.registrarEvento(prev.camaId, 'alerta',
-                'Persiste: ' + prev.titulo + ' (reconocida hace ' + U.duracion(ahora - reconocidaEn) + ', sigue sin resolverse)');
+                'Persiste: ' + prev.titulo + ' (silenciada como "' +
+                (motivo === 'atendido' ? 'paciente atendido' : 'paciente en espera') +
+                '" hace ' + U.duracion(ahora - silencio.en) + ', sigue sin resolverse)');
             }
           }
           return;
@@ -215,15 +219,15 @@ var Alertas = (function () {
     return lista().filter(function (a) { return a.camaId === camaId; });
   }
 
-  function reconocer(codigo) {
-    if (activas[codigo]) {
-      activas[codigo].reconocida = true;
-      Modelo.estado.reconocidas[codigo] = Date.now();
-      Modelo.registrarEvento(activas[codigo].camaId, 'alerta', 'Reconocida: ' + activas[codigo].titulo);
-    }
-  }
-  function reconocerTodas() {
-    Object.keys(activas).forEach(reconocer);
+  /* Silencia una alerta activa por un tiempo acorde al motivo elegido
+     (ver CFG.umbrales.reAlertaMin). No registra el evento: eso queda a
+     cargo de quien llama, que conoce el nombre del operador. */
+  function silenciar(codigo, motivo) {
+    var al = activas[codigo];
+    if (!al) return null;
+    al.reconocida = true;
+    Modelo.estado.reconocidas[codigo] = { en: Date.now(), motivo: motivo === 'atendido' ? 'atendido' : 'espera' };
+    return al;
   }
 
   /* Nivel más grave de una cama; alimenta el color del borde de la tarjeta. */
@@ -244,7 +248,7 @@ var Alertas = (function () {
 
   return {
     actualizar: actualizar, lista: lista, porCama: porCama,
-    reconocer: reconocer, reconocerTodas: reconocerTodas,
+    silenciar: silenciar,
     nivelCama: nivelCama, contarPorNivel: contarPorNivel, alCambiar: alCambiar
   };
 })();

@@ -12,9 +12,11 @@ var UI = (function () {
   var camaAbierta = null;     // id de la cama mostrada en el modal de detalle
   var rangoHoras = 6;
   var tabDetalle = 'tendencias';
+  var codigoSilenciar = null; // código de la alerta a la que se le está por elegir motivo de silencio
   var filtroTexto = '';
   var filtroEstado = 'todas';
   var orden = 'cama';
+  var eventosExpandido = false;
 
   /* ============================== KPIs ================================ */
 
@@ -60,7 +62,12 @@ var UI = (function () {
 
   function claseEstado(cama, m) {
     if (!cama.pacienteId && !cama.dispositivoId) return 'libre';
-    if (!m || m.vacio) return m && m.paciente ? 'sindispositivo' : 'sinsenal';
+    // Sin datos de dispositivo en este equipo: puede ser que nunca se haya
+    // vinculado uno, o que el dispositivoId venga sincronizado desde otra
+    // computadora (dispositivos/muestras son locales a cada navegador, no
+    // se sincronizan). En ambos casos no hay nada de "m.dispositivo" que
+    // mostrar, con o sin paciente asignado.
+    if (!m || m.vacio) return 'sindispositivo';
     if (m.sinSenalSeg > CFG.umbrales.segundosSinDatos) return 'sinsenal';
     var nivel = Alertas.nivelCama(cama.id);
     return nivel === 'sinsenal' ? 'ok' : nivel;
@@ -77,6 +84,12 @@ var UI = (function () {
 
   function pasaFiltro(cama, m, estadoClase) {
     if (filtroEstado === 'todas') return true;
+    if (filtroEstado === 'conpaciente') return !!(m && m.paciente);
+    // A diferencia del paciente (que sí se sincroniza por completo con la
+    // nube), el dispositivo es local a cada navegador: cama.dispositivoId
+    // puede estar bien asignado y no resolver a m.dispositivo en este
+    // equipo. El filtro es sobre la asignación, no sobre si hay datos acá.
+    if (filtroEstado === 'condispositivo') return !!cama.dispositivoId;
     if (filtroEstado === 'libres') return estadoClase === 'libre';
     if (filtroEstado === 'sinsenal') return estadoClase === 'sinsenal';
     if (filtroEstado === 'alerta') return ['critico', 'grave', 'aviso'].indexOf(estadoClase) !== -1;
@@ -84,7 +97,7 @@ var UI = (function () {
     return true;
   }
 
-  var PESO_ORDEN = { critico: 0, grave: 1, aviso: 2, sinsenal: 3, ok: 4, libre: 5 };
+  var PESO_ORDEN = { critico: 0, grave: 1, aviso: 2, sinsenal: 3, sindispositivo: 4, ok: 5, libre: 6 };
 
   function pintarMural() {
     var camas = Modelo.camasVisibles();
@@ -111,10 +124,46 @@ var UI = (function () {
     var mural = U.$('#mural');
     mural.innerHTML = '';
     if (!filas.length) {
-      mural.innerHTML = '<div class="vacio" style="grid-column:1/-1">Ninguna cama coincide con el filtro actual.</div>';
-      return;
+      mural.innerHTML = '<div class="vacio" style="width:100%">Ninguna cama coincide con el filtro actual.</div>';
+    } else {
+      filas.forEach(function (f) { mural.appendChild(tarjetaCama(f.cama, f.m, f.estado)); });
     }
-    filas.forEach(function (f) { mural.appendChild(tarjetaCama(f.cama, f.m, f.estado)); });
+    alinearAnchoFilaIncompleta();
+
+    // El panel de alertas y el de eventos se alinean al mural en cada
+    // repintado, no sólo en pintarTodo(): si sólo se repinta el mural
+    // (buscar/filtrar/ordenar) su cantidad de filas puede cambiar sin que
+    // cambie la cantidad de alertas, y si el alto quedara desactualizado
+    // parecería (engañosamente) que la lista de alertas está filtrada
+    // junto con las camas.
+    igualarAlturasLateral();
+  }
+
+  /* Cuando la última fila queda incompleta, sus tarjetas crecen con
+     flex-grow para no dejar un hueco vacío a la derecha (ver .mural en
+     estilos.css) — pero antes tenían un max-width fijo (780px) que sólo
+     aproximaba "el ancho de dos tarjetas", sin coincidir exactamente con
+     el borde real de la 2.ª columna en cada resolución. Se mide el ancho
+     real de una columna en una fila completa y se fija --ancho-doble a
+     ese valor exacto (2 columnas + el gap entre ellas), para que el
+     borde derecho de una tarjeta que creció quede alineado con el de la
+     2.ª tarjeta de la fila de arriba. */
+  function alinearAnchoFilaIncompleta() {
+    var mural = U.$('#mural');
+    var hijos = U.$$('.cama', mural);
+    if (!hijos.length) return;
+    var gap = parseFloat(getComputedStyle(mural).columnGap) || 13;
+    var filas = [];
+    hijos.forEach(function (el) {
+      var top = el.offsetTop;
+      var fila = filas.filter(function (f) { return Math.abs(f.top - top) < 1; })[0];
+      if (!fila) { fila = { top: top, elems: [] }; filas.push(fila); }
+      fila.elems.push(el);
+    });
+    var filaCompleta = filas.filter(function (f) { return f.elems.length > 1; })[0];
+    if (!filaCompleta) return;
+    var anchoColumna = filaCompleta.elems[0].getBoundingClientRect().width;
+    mural.style.setProperty('--ancho-doble', Math.round(anchoColumna * 2 + gap) + 'px');
   }
 
   function tarjetaCama(cama, m, estado) {
@@ -129,29 +178,41 @@ var UI = (function () {
         '<div class="cama-libre-cuerpo">' +
           iconoCamaLibre() +
           '<div>Cama libre</div>' +
-          '<button class="btn secundario chico" data-accion="asignar">Asignar paciente</button>' +
+          '<div class="cama-libre-acciones">' +
+            '<button class="btn secundario chico" data-accion="asignar">Asignar paciente</button>' +
+            '<button class="btn peligro chico" data-accion="eliminar">Eliminar cama</button>' +
+          '</div>' +
         '</div>';
       div.querySelector('[data-accion="asignar"]').onclick = function (ev) {
         ev.stopPropagation(); abrirAsignar(cama.id);
+      };
+      div.querySelector('[data-accion="eliminar"]').onclick = function (ev) {
+        ev.stopPropagation(); Acciones.eliminarCama(cama.id);
       };
       return div;
     }
 
     if (estado === 'sindispositivo') {
-      div.innerHTML =
-        '<div class="cama-head">' +
-          '<div class="cama-ident">' +
+      var encabezado = m.paciente
+        ? '<div class="cama-ident">' +
             '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>' +
             '<div>' +
               '<div class="cama-nombre">' + U.esc(m.paciente.nombre) + '</div>' +
               '<div class="cama-meta">' + U.esc(m.paciente.hc) + ' · ' + (m.paciente.edad ? m.paciente.edad + 'a · ' : '') + m.paciente.pesoKg + ' kg</div>' +
             '</div>' +
-          '</div>' +
-        '</div>' +
+          '</div>'
+        : '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>';
+      var mensaje = cama.dispositivoId
+        ? 'Dispositivo vinculado sin datos disponibles en este equipo'
+        : (m.paciente ? 'Paciente admitido, sin dispositivo vinculado' : 'Cama sin paciente ni dispositivo vinculado');
+      var textoBoton = cama.dispositivoId ? 'Reasignar' : (m.paciente ? 'Vincular dispositivo' : 'Asignar paciente');
+
+      div.innerHTML =
+        '<div class="cama-head">' + encabezado + '</div>' +
         '<div class="cama-libre-cuerpo">' +
           iconoCamaLibre() +
-          '<div>Paciente admitido, sin dispositivo vinculado</div>' +
-          '<button class="btn secundario chico" data-accion="asignar">Vincular dispositivo</button>' +
+          '<div>' + mensaje + '</div>' +
+          '<button class="btn secundario chico" data-accion="asignar">' + textoBoton + '</button>' +
         '</div>';
       div.querySelector('[data-accion="asignar"]').onclick = function (ev) {
         ev.stopPropagation(); abrirAsignar(cama.id);
@@ -177,7 +238,6 @@ var UI = (function () {
         '</div>' +
         '<div class="cama-badges">' +
           '<span class="badge ' + (d.tipo === 'sim' ? 'sim' : 'real') + '">' + (d.tipo === 'sim' ? 'PILOTO' : 'REAL') + '</span>' +
-          (m.muestrasBuffer ? '<span class="badge buffer" title="Datos reconstruidos del búfer">BÚFER</span>' : '') +
           '<span class="bateria ' + claseBat + '" title="Batería ' + Math.round(bat) + ' %">' +
             '<span class="bat-cuerpo"><span class="bat-relleno" style="width:' + U.clamp(bat, 0, 100) + '%"></span></span>' +
             Math.round(bat) + '%' +
@@ -195,7 +255,7 @@ var UI = (function () {
         '</div>' +
         '<div class="mini-datos">' +
           '<div class="mini' + (claseTempMini(m.tempC)) + '"><div class="mini-rot">Temp.</div><div class="mini-val">' + (m.tempC === null ? '—' : U.num(m.tempC, 1)) + '<small>°C</small></div></div>' +
-          '<div class="mini' + (m.color && m.color.anomalo ? ' alerta' : '') + '"><div class="mini-rot">Color</div><div class="mini-val"><span class="muestra-color" style="background:' + (m.color ? m.color.hex : '#333') + '"></span>' + (m.color ? U.esc(m.color.nombre) : '—') + '</div></div>' +
+          '<div class="mini' + (m.color && m.color.anomalo ? ' alerta' : '') + '"><div class="mini-rot">Color</div><div class="mini-val"><span class="muestra-color" style="background:' + (m.color ? m.color.hex : '#333') + '"></span><span class="mini-val-txt">' + (m.color ? U.esc(m.color.nombre) : '—') + '</span></div></div>' +
           '<div class="mini"><div class="mini-rot">Acumulado</div><div class="mini-val">' + U.num(m.volTotalMl, 0) + '<small>mL</small></div></div>' +
         '</div>' +
         '<div class="barra-bolsa">' +
@@ -203,6 +263,7 @@ var UI = (function () {
           '<div class="barra-pista"><div class="barra-relleno' + (m.llenado >= CFG.umbrales.bolsaCritica ? ' critico' : (m.llenado >= CFG.umbrales.bolsaAviso ? ' aviso' : '')) + '" style="width:' + Math.round(m.llenado * 100) + '%"></div></div>' +
         '</div>' +
         (alertasCama.length ? '<div class="cama-alertas">' + alertasCama.map(pastillaAlerta).join('') + '</div>' : '') +
+        (m.muestrasBuffer ? '<div class="cama-buffer-nota" title="Datos reconstruidos del búfer del equipo al reconectar"><span class="badge buffer">BÚFER</span> Datos reconstruidos al reconectar</div>' : '') +
       '</div>';
 
     var cv = div.querySelector('[data-spark]');
@@ -234,6 +295,14 @@ var UI = (function () {
 
   /* ============================ ALERTAS LATERAL ========================= */
 
+  var NIVEL_ORDEN = ['critica', 'alta', 'media', 'tecnica'];
+  function vibrarPanelAlertas() {
+    var panel = U.$('.panel-alertas');
+    panel.classList.remove('vibrar');
+    void panel.offsetWidth;   // fuerza reflow para poder re-disparar la animación
+    panel.classList.add('vibrar');
+    setTimeout(function () { panel.classList.remove('vibrar'); }, 450);
+  }
   function pintarAlertas() {
     var lista = Alertas.lista();
     var activasNoRec = lista.filter(function (a) { return !a.reconocida; });
@@ -241,30 +310,46 @@ var UI = (function () {
     cont.textContent = activasNoRec.length;
     cont.classList.toggle('activo', activasNoRec.length > 0);
 
+    var panel = U.$('.panel-alertas');
+    var conteos = Alertas.contarPorNivel();
+    var peor = NIVEL_ORDEN.find(function (n) { return conteos[n] > 0; });
+    NIVEL_ORDEN.forEach(function (n) { panel.classList.toggle('nivel-' + n, n === peor); });
+
     var el = U.$('#listaAlertas');
     if (!lista.length) { el.innerHTML = '<div class="vacio">Sin alertas activas. Todo dentro de rango.</div>'; return; }
     el.innerHTML = '';
     lista.forEach(function (a) {
+      var silInfo = Modelo.estado.reconocidas[a.codigo];
+      var etiquetaSilencio = silInfo ? (silInfo.motivo === 'atendido' ? 'paciente atendido' : 'en espera') : '';
       var it = U.el('div', 'item-alerta ' + a.nivel + (a.reconocida ? ' reconocida' : ''));
       it.innerHTML =
         '<div class="franja"></div>' +
         '<div class="alerta-cuerpo">' +
           '<div class="alerta-titulo"><span class="cama-ref">' + U.esc(a.ref) + '</span>' + U.esc(a.titulo) + '</div>' +
           '<div class="alerta-detalle">' + U.esc(a.detalle) + '</div>' +
-          '<div class="alerta-tiempo">' + U.desde(a.desde) + (a.reconocida ? ' · reconocida' : '') + '</div>' +
+          '<div class="alerta-tiempo">' + U.desde(a.desde) + (a.reconocida ? ' · silenciada (' + etiquetaSilencio + ')' : '') + '</div>' +
+          (a.reconocida ? '' : '<button class="btn-silenciar" data-codigo="' + U.esc(a.codigo) + '" data-titulo="' + U.esc(a.titulo) + '">Silenciar</button>') +
         '</div>';
       it.onclick = function () { abrirDetalle(a.camaId); };
+      var btn = it.querySelector('.btn-silenciar');
+      if (btn) {
+        btn.onclick = function (ev) {
+          ev.stopPropagation();
+          pedirSilenciar(btn.dataset.codigo, btn.dataset.titulo);
+        };
+      }
       el.appendChild(it);
     });
   }
 
   function pintarEventos() {
-    var ev = Modelo.estado.eventos.slice(-40).reverse();
+    var ev = Modelo.estado.eventos.slice(-(eventosExpandido ? 300 : 40)).reverse();
     var el = U.$('#listaEventos');
     if (!ev.length) { el.innerHTML = '<div class="vacio">Sin eventos todavía.</div>'; return; }
     el.innerHTML = ev.map(function (e) {
       var cama = e.camaId ? Modelo.buscarCama(e.camaId) : null;
-      return '<div class="item-evento"><span class="hora">' + U.hora(e.t) + '</span><span>' +
+      var reciente = e.tipo === 'silencio' && (Date.now() - e.t) < 6000;
+      return '<div class="item-evento' + (reciente ? ' silencio-reciente' : '') + '"><span class="hora">' + U.hora(e.t) + '</span><span>' +
         (cama ? '<b style="color:var(--texto)">' + U.esc(cama.etiqueta) + '</b> · ' : '') +
         (e.operador ? '<span class="ev-operador">' + U.esc(e.operador) + '</span> — ' : '') +
         U.esc(e.texto) + '</span></div>';
@@ -378,10 +463,68 @@ var UI = (function () {
   function pintarTodo() {
     pintarBarraEstado();
     pintarKpis();
-    pintarMural();
+    pintarMural();   // ya iguala el alto del panel lateral al final
     pintarAlertas();
     pintarEventos();
     if (camaAbierta) actualizarDetalleAbierto();
+  }
+
+  var ALTURA_EVENTOS_SIN_FILAS = 300;   // fallback: sin ninguna cama visible
+
+  /* Agrupa las tarjetas del mural por fila visual (mismo offsetTop, ya que
+     .mural usa flex-wrap) y devuelve [{top, height}, ...] ordenadas. */
+  function filasDelMural() {
+    var mural = U.$('#mural');
+    var hijos = U.$$('.cama', mural);
+    var filas = [];
+    hijos.forEach(function (el) {
+      var top = el.offsetTop;
+      var fila = filas.filter(function (f) { return Math.abs(f.top - top) < 1; })[0];
+      if (!fila) { fila = { top: top, height: 0 }; filas.push(fila); }
+      fila.height = Math.max(fila.height, el.offsetHeight);
+    });
+    filas.sort(function (a, b) { return a.top - b.top; });
+    return filas;
+  }
+
+  /* Iguala el alto de "Alertas activas" al de las dos primeras filas de
+     camas (borde superior con borde superior, borde inferior de la 2.ª
+     fila con borde inferior del panel), y el de "Registro de eventos" al
+     de la 3.ª fila. Sin 3.ª fila, Eventos toma como referencia la fila más
+     alta del mural (una tarjeta con alerta es más alta que una sin
+     alertas); sin ninguna fila, un tamaño fijo razonable. */
+  function igualarAlturasLateral() {
+    var filas = filasDelMural();
+    var mural = U.$('#mural');
+    var gap = parseFloat(getComputedStyle(mural).rowGap) || 13;
+
+    var panelAlertas = U.$('.panel-alertas');
+    var alturaAlertas = null;
+    if (filas.length === 1) {
+      // No hay una 2.ª fila real con la que alinearse (pocas camas, o un
+      // filtro/zoom que hace entrar todas en una sola fila): en vez de
+      // colapsar al alto de esa única fila (muy bajo para una lista de
+      // alertas), se usa el doble como referencia de "2 filas esperadas".
+      alturaAlertas = filas[0].height * 2 + gap;
+    } else if (filas.length >= 2) {
+      alturaAlertas = filas[0].height + gap + filas[1].height;
+    }
+    panelAlertas.style.height = alturaAlertas !== null ? alturaAlertas + 'px' : '';
+
+    var panelEventos = U.$('.panel-eventos');
+    var alturaEventos;
+    if (eventosExpandido) {
+      // Expandido a mano: ignora la altura atada al mural y ocupa buena
+      // parte del alto de la ventana para poder navegar el historial.
+      alturaEventos = Math.round(window.innerHeight * 0.7);
+    } else if (filas.length >= 3) {
+      alturaEventos = filas[2].height;
+    } else if (filas.length > 0) {
+      alturaEventos = Math.max.apply(null, filas.map(function (f) { return f.height; }));
+    } else {
+      alturaEventos = ALTURA_EVENTOS_SIN_FILAS;
+    }
+    panelEventos.style.height = alturaEventos + 'px';
   }
 
   /* ============================ MODAL DETALLE ============================ */
@@ -391,9 +534,9 @@ var UI = (function () {
     tabDetalle = 'tendencias';
     U.$$('.tab-det').forEach(function (b) { b.classList.toggle('activo', b.dataset.tab === tabDetalle); });
     U.$$('.tab-panel').forEach(function (p) { p.classList.toggle('activo', p.dataset.panel === tabDetalle); });
-    renderDetalle();
     U.$('#modalDetalle').classList.add('abierto');
     U.$('#modalDetalle').setAttribute('aria-hidden', 'false');
+    renderDetalle();
   }
   function cerrarDetalle() {
     camaAbierta = null;
@@ -419,19 +562,31 @@ var UI = (function () {
 
     U.$('#btnVaciarBolsa').style.display = m.dispositivo ? '' : 'none';
     U.$('#btnExportar').style.display = m.dispositivo ? '' : 'none';
+    U.$('#btnTrasladar').style.display = m.paciente ? '' : 'none';
+
+    // No pisar el campo si el usuario lo está editando ahora mismo: la
+    // vista se re-renderiza sola cada pocos segundos con datos nuevos.
+    if (document.activeElement !== U.$('#detSerieInventario')) {
+      U.$('#detSerieInventario').value = cama.serieInventario || '';
+    }
 
     renderResumen(m);
     if (m.dispositivo) {
+      U.$('#tendenciasVacio').hidden = true;
+      U.$('#tendenciasContenido').hidden = false;
       renderTendencias(m);
       renderDispositivo(m);
-      renderEventosCama(cama);
     } else {
-      ['gDiuresis', 'gVolumen', 'gTemp', 'gColor'].forEach(function (id) {
-        var c = U.$('#' + id); var ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height);
-      });
+      U.$('#tendenciasVacio').hidden = false;
+      U.$('#tendenciasContenido').hidden = true;
+      U.$('#tendenciasVacio').textContent = cama.dispositivoId
+        ? 'El dispositivo vinculado no tiene datos disponibles en este equipo.'
+        : (m.paciente ? 'Vinculá un dispositivo a esta cama para ver sus tendencias.' : 'Asigná un paciente y vinculá un dispositivo para ver tendencias.');
       U.$('#detDispositivo').innerHTML = '<p class="nota">Esta cama todavía no tiene un dispositivo vinculado.</p>';
-      U.$('#detEventos').innerHTML = '<p class="nota">Sin eventos.</p>';
     }
+    // Los eventos son de la cama, no del dispositivo: se muestran siempre,
+    // tenga o no dispositivo vinculado en este momento.
+    renderEventosCama(cama);
   }
 
   function resVal(rot, val, sub, clase) {
@@ -447,7 +602,7 @@ var UI = (function () {
       resVal('Diuresis (1 h)', (m.mlH === null ? '—' : U.num(m.mlH, 0) + ' <small>mL/h</small>'), m.mlKgH !== null ? U.num(m.mlKgH, 2) + ' mL/kg/h' : '', claseTasa(m.mlKgH)) +
       resVal('Diuresis (6 h)', (m.mlH6 === null ? '—' : U.num(m.mlKgH6, 2) + ' <small>mL/kg/h</small>'), 'promedio de las últimas 6 h', claseTasa(m.mlKgH6)) +
       resVal('Temperatura', (m.tempC === null ? '—' : U.num(m.tempC, 1) + ' <small>°C</small>'), 'máx. 6 h: ' + (m.tempMax6h !== null ? U.num(m.tempMax6h, 1) + ' °C' : '—'), claseTemp(m.tempC)) +
-      resVal('Color', m.color ? U.esc(m.color.nombre) : '—', m.color ? m.color.hidratacion : '', m.color && m.color.anomalo ? 'critico' : 'ok') +
+      resVal('Color', m.color ? U.esc(m.color.nombre) : '—', m.color ? m.color.hidratacion : '', m.color ? m.color.estado : '') +
       resVal('Volumen acumulado', U.num(m.volTotalMl, 0) + ' <small>mL</small>', 'desde el alta del dispositivo', '') +
       resVal('Estado renal', kdigoTxt, m.horasOliguria ? m.horasOliguria + ' h por debajo de 0,5 mL/kg/h' : 'diuresis dentro de objetivo', kdigoClase);
   }
@@ -473,7 +628,7 @@ var UI = (function () {
     if (!ms.length) ms = d.muestras.slice(-2);
 
     Graf.barrasDiuresis(U.$('#gDiuresis'), Modelo.bucketsHorarios(d, rangoHoras), {
-      pesoKg: p ? p.pesoKg : null, umbralMlH: m.umbralMlH
+      pesoKg: p ? p.pesoKg : null, umbralMlH: m.umbralMlH, umbralPoliuriaMlH: m.umbralPoliuriaMlH
     });
 
     Graf.serie(U.$('#gVolumen'), ms.map(function (x) { return { t: x.t, v: x.volTotalMl, buffer: x.origen === 'buffer' }; }), {
@@ -495,6 +650,13 @@ var UI = (function () {
     return 'rgba(' + rgb.join(',') + ',' + a + ')';
   }
 
+  function duracionBateria(d) {
+    var horas = Modelo.horasBateriaRestante(d);
+    if (horas === null) return 'estimando autonomía…';
+    var prefijo = d.estado === 'en-linea' ? '' : 'incomunicado · ';
+    return prefijo + '~' + U.duracion(horas * 3600000) + ' de autonomía restante';
+  }
+
   function renderDispositivo(m) {
     var d = m.dispositivo;
     var e = d.tipo === 'sim' ? null : Conexion.estado();
@@ -502,7 +664,7 @@ var UI = (function () {
       resVal('N.º de serie', '<span style="font-family:var(--mono)">' + U.esc(d.serie) + '</span>', d.tipo === 'sim' ? 'dispositivo piloto (simulado)' : 'dispositivo real', '') +
       resVal('Estado del enlace', d.estado === 'en-linea' ? 'En línea' : 'Sin señal', U.desde(d.ultimoContacto || d.reloj), d.estado === 'en-linea' ? 'ok' : 'critico') +
     '</div><div class="fila">' +
-      resVal('Batería', Math.round(d.bat) + ' <small>%</small>', '', d.bat <= CFG.umbrales.bateriaBaja ? 'aviso' : 'ok') +
+      resVal('Batería', Math.round(d.bat) + ' <small>%</small>', duracionBateria(d), d.bat <= CFG.umbrales.bateriaBaja ? 'critico' : 'ok') +
       resVal('Señal (RSSI)', Math.round(d.rssi) + ' <small>dBm</small>', d.tipo === 'sim' ? 'simulado' : (e ? e.tipo : '—'), '') +
     '</div>';
 
@@ -512,7 +674,7 @@ var UI = (function () {
         '<p class="nota"><b style="color:var(--texto)">' + U.esc(esc ? esc.nombre : d.escenario) + '</b> — ' + U.esc(esc ? esc.resumen : '') + '</p>' +
         '<div class="campo"><label>Cambiar escenario</label><select id="selEscenarioDet"></select></div>' +
         '<div class="acciones"><button class="btn secundario chico" id="btnAplicarEscenario">Aplicar (mantiene el historial)</button>' +
-        '<button class="btn chico" id="btnReiniciarEscenario">Reiniciar con 8 h de historial nuevo</button></div>';
+        '<button class="btn chico" id="btnReiniciarEscenario">Reiniciar con 26 h de historial nuevo</button></div>';
     }
 
     html += '<div class="sep"></div><div class="subtitulo">Calibración</div>' +
@@ -547,9 +709,11 @@ var UI = (function () {
   }
 
   function renderEventosCama(cama) {
-    var d = Modelo.estado.dispositivos[cama.dispositivoId];
-    var ev = (d ? d.eventos : []).slice(-60).reverse();
-    if (!ev.length) { U.$('#detEventos').innerHTML = '<p class="nota">Sin eventos registrados.</p>'; return; }
+    // Se filtra el registro global por camaId (no por dispositivo: un
+    // dispositivo puede irse con el paciente a otra cama, o cambiar, y la
+    // cama debe conservar su propia historia igual).
+    var ev = Modelo.estado.eventos.filter(function (e) { return e.camaId === cama.id; }).slice(-60).reverse();
+    if (!ev.length) { U.$('#detEventos').innerHTML = '<p class="nota">Sin eventos registrados para esta cama.</p>'; return; }
     var filas = ev.map(function (e) {
       return '<tr><td style="font-family:var(--mono);white-space:nowrap">' + U.fechaHora(e.t) + '</td><td>' + U.esc(e.tipo) + '</td><td>' + U.esc(e.operador || 'Sistema') + '</td><td>' + U.esc(e.texto) + '</td></tr>';
     }).join('');
@@ -675,6 +839,63 @@ var UI = (function () {
   function cerrarAsignar() {
     U.$('#modalAsignar').classList.remove('abierto');
     U.$('#modalAsignar').setAttribute('aria-hidden', 'true');
+  }
+
+  /* ============================ MODAL TRASLADAR ============================ */
+
+  function abrirTrasladar(camaId) {
+    var cama = Modelo.buscarCama(camaId);
+    if (!cama || !cama.pacienteId) return;
+    var p = Modelo.estado.pacientes[cama.pacienteId];
+    U.$('#trasTitulo').textContent = 'Trasladar a ' + (p ? p.nombre : 'paciente');
+    var libres = Modelo.camasLibres();
+    var el = U.$('#listaCamasLibres');
+    if (!libres.length) {
+      el.innerHTML = '<p class="nota">No hay camas libres para trasladar.</p>';
+    } else {
+      el.innerHTML = libres.map(function (c) {
+        return '<div class="disp-opcion" data-cama="' + U.esc(c.id) + '">' +
+          '<div><div class="serie">' + U.esc(c.etiqueta) + '</div><div class="desc">Cama libre</div></div>' +
+        '</div>';
+      }).join('');
+      U.$$('.disp-opcion', el).forEach(function (op) {
+        op.onclick = function () {
+          if (Acciones.trasladarPaciente(camaId, op.dataset.cama)) {
+            cerrarTrasladar();
+            abrirDetalle(op.dataset.cama);
+          }
+        };
+      });
+    }
+    U.$('#modalTrasladar').classList.add('abierto');
+    U.$('#modalTrasladar').setAttribute('aria-hidden', 'false');
+  }
+  function cerrarTrasladar() {
+    U.$('#modalTrasladar').classList.remove('abierto');
+    U.$('#modalTrasladar').setAttribute('aria-hidden', 'true');
+  }
+
+  /* ============================ MODAL SILENCIAR =========================== */
+
+  function pedirSilenciar(codigo, titulo) {
+    if (Operador.actual() === 'Invitado') {
+      toast('Para silenciar alarmas hace falta identificarse con un nombre.', 'error');
+      return;
+    }
+    codigoSilenciar = codigo;
+    U.$('#silTitulo').textContent = '"' + titulo + '"';
+    U.$('#modalSilenciar').classList.add('abierto');
+    U.$('#modalSilenciar').setAttribute('aria-hidden', 'false');
+  }
+  function cerrarSilenciar() {
+    codigoSilenciar = null;
+    U.$('#modalSilenciar').classList.remove('abierto');
+    U.$('#modalSilenciar').setAttribute('aria-hidden', 'true');
+  }
+  function confirmarSilenciar(motivo) {
+    if (!codigoSilenciar) return;
+    Acciones.silenciarAlerta(codigoSilenciar, motivo);
+    cerrarSilenciar();
   }
 
   /* ============================ MODAL CONFIG ============================= */
@@ -804,6 +1025,13 @@ var UI = (function () {
       Acciones.guardar();
     };
 
+    U.$('#cabeceraEventos').onclick = function () {
+      eventosExpandido = !eventosExpandido;
+      U.$('.panel-eventos').classList.toggle('expandido', eventosExpandido);
+      pintarEventos();
+      igualarAlturasLateral();
+    };
+
     U.$('#buscar').oninput = function (ev) { filtroTexto = ev.target.value; pintarMural(); };
     U.$('#filtroEstado').onchange = function (ev) { filtroEstado = ev.target.value; pintarMural(); };
     U.$('#orden').onchange = function (ev) { orden = ev.target.value; pintarMural(); };
@@ -826,11 +1054,26 @@ var UI = (function () {
       };
     });
     U.$('#btnAsignarDesdeDetalle').onclick = function () { if (camaAbierta) abrirAsignar(camaAbierta); };
+    U.$('#btnTrasladar').onclick = function () { if (camaAbierta) abrirTrasladar(camaAbierta); };
+    U.$('#btnGuardarInventario').onclick = function () {
+      if (!camaAbierta) return;
+      Acciones.guardarSerieInventario(camaAbierta, U.$('#detSerieInventario').value.trim());
+    };
+    U.$('#detSerieInventario').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') U.$('#btnGuardarInventario').click();
+    });
+    U.$('#btnCerrarTrasladar').onclick = cerrarTrasladar;
+    U.$('#modalTrasladar').addEventListener('click', function (ev) { if (ev.target.id === 'modalTrasladar') cerrarTrasladar(); });
     U.$('#btnVaciarBolsa').onclick = function () { if (camaAbierta) Acciones.vaciarBolsa(camaAbierta); };
     U.$('#btnExportar').onclick = function () { if (camaAbierta) Acciones.exportarCamaCsv(camaAbierta); };
 
     U.$('#btnCerrarAsignar').onclick = cerrarAsignar;
     U.$('#modalAsignar').addEventListener('click', function (ev) { if (ev.target.id === 'modalAsignar') cerrarAsignar(); });
+
+    U.$('#btnCerrarSilenciar').onclick = cerrarSilenciar;
+    U.$('#modalSilenciar').addEventListener('click', function (ev) { if (ev.target.id === 'modalSilenciar') cerrarSilenciar(); });
+    U.$('#btnSilenciarAtendido').onclick = function () { confirmarSilenciar('atendido'); };
+    U.$('#btnSilenciarEspera').onclick = function () { confirmarSilenciar('espera'); };
 
     U.$('#chipOperador').onclick = abrirOperador;
     U.$('#btnGuardarOperador').onclick = guardarOperador;
@@ -844,11 +1087,23 @@ var UI = (function () {
     U.$('#modalOperador').addEventListener('click', function (ev) { if (ev.target.id === 'modalOperador') cerrarOperador(); });
 
     document.addEventListener('keydown', function (ev) {
-      if (ev.key === 'Escape') { cerrarDetalle(); cerrarAsignar(); cerrarConfig(); cerrarOperador(); }
+      if (ev.key === 'Escape') { cerrarDetalle(); cerrarAsignar(); cerrarConfig(); cerrarOperador(); cerrarSilenciar(); cerrarTrasladar(); }
     });
 
-    Alertas.alCambiar(function () { pintarAlertas(); });
+    Alertas.alCambiar(function (nuevas) {
+      pintarAlertas();
+      if (nuevas && nuevas.length) vibrarPanelAlertas();
+    });
     Conexion.alCambiar(function () { pintarBarraEstado(); });
+
+    // Cambiar el zoom o el ancho de ventana puede cambiar cuántas camas
+    // entran por fila sin que se repinte el mural por ningún otro motivo:
+    // hay que volver a medir las filas y realinear el panel lateral.
+    var resizeTimer = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(igualarAlturasLateral, 120);
+    });
   }
 
   return {

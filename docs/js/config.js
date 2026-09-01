@@ -59,10 +59,26 @@ var CFG = {
     minutosSinFlujo:  45,     // flujo ~0 sostenido ⇒ sospecha de obstrucción
     flujoNuloMlH:     3,      // por debajo de esto se considera flujo nulo
 
-    /* Re-alerta: reconocer una alerta la silencia, pero si el mismo problema
+    /* Re-alerta: silenciar una alerta la posterga, pero si el mismo problema
        sigue sin resolverse pasado este tiempo, vuelve a sonar sola (no hace
-       falta que empeore). Cuanto más grave, antes insiste. */
-    reAlertaMin: { critica: 15, alta: 30, media: 60, tecnica: 120 }
+       falta que empeore). Cuanto más grave, antes insiste.
+
+       Dos ventanas por nivel según el motivo que elige quien silencia:
+       "atendido" (ya se actuó sobre el paciente) tolera más espera antes de
+       reinsistir; "espera" (todavía no se pudo atender) vuelve a chequear
+       antes. Basado en los criterios KDIGO de diuresis horaria —oliguria
+       sostenida ≥6-12 h para estadio 1, ≥12 h para estadio 2, <0,3 mL/kg/h
+       ≥24 h o anuria ≥12 h para estadio 3— y en el hallazgo de que un
+       control manual cada ≤3 h reduce la sobrecarga de fluidos frente a
+       controles más espaciados (KDIGO 2012 AKI Guideline; PMC9792308).
+       Las ventanas quedan bien por debajo de esas horas de definición para
+       no dejar pasar una hora completa de diuresis sin reevaluar. */
+    reAlertaMin: {
+      critica: { atendido: 30,  espera: 15 },
+      alta:    { atendido: 60,  espera: 30 },
+      media:   { atendido: 120, espera: 60 },
+      tecnica: { atendido: 180, espera: 60 }
+    }
   },
 
   /* ---------------- Escala colorimétrica de la orina ----------------

@@ -154,6 +154,8 @@
           <option value="alerta">Con alerta</option>
           <option value="oliguria">Oliguria / anuria</option>
           <option value="sinsenal">Sin señal</option>
+          <option value="conpaciente">Con paciente</option>
+          <option value="condispositivo">Con dispositivo</option>
           <option value="libres">Libres</option>
         </select>
         <select id="orden" title="Ordenar">
@@ -161,7 +163,7 @@
           <option value="criticidad">Por criticidad</option>
           <option value="diuresis">Por diuresis</option>
         </select>
-        <button class="btn secundario chico" id="btnNuevaCama">+ Cama</button>
+        <button class="btn secundario" id="btnNuevaCama">+ Cama</button>
       </div>
     </div>
     <div class="mural" id="mural"></div>
@@ -176,7 +178,10 @@
       <div class="lista-alertas" id="listaAlertas"></div>
     </section>
     <section class="panel-eventos">
-      <header><h3>Registro de eventos</h3></header>
+      <header id="cabeceraEventos" title="Expandir para navegar el registro completo">
+        <h3>Registro de eventos</h3>
+        <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+      </header>
       <div class="lista-eventos" id="listaEventos"></div>
     </section>
   </aside>
@@ -191,10 +196,16 @@
         <div>
           <h2 id="detNombre">—</h2>
           <p id="detMeta">—</p>
+          <div class="detalle-inventario">
+            <label for="detSerieInventario">N.º de inventario de la cama</label>
+            <input type="text" id="detSerieInventario" placeholder="Ej: INV-00231">
+            <button class="btn secundario chico" id="btnGuardarInventario">Guardar</button>
+          </div>
         </div>
       </div>
       <div class="detalle-acciones">
         <button class="btn secundario chico" id="btnAsignarDesdeDetalle">Asignar paciente</button>
+        <button class="btn secundario chico" id="btnTrasladar">Trasladar a otra cama</button>
         <button class="btn secundario chico" id="btnVaciarBolsa">Registrar vaciado</button>
         <button class="btn secundario chico" id="btnExportar">Exportar CSV</button>
         <button class="ico-btn" id="btnCerrarDetalle" aria-label="Cerrar">
@@ -212,30 +223,33 @@
     </nav>
 
     <div class="tab-panel activo" data-panel="tendencias">
-      <div class="rango-tiempo" id="rangoTiempo">
-        <button class="rango activo" data-horas="6">6 h</button>
-        <button class="rango" data-horas="12">12 h</button>
-        <button class="rango" data-horas="24">24 h</button>
-      </div>
-      <div class="grafico-bloque">
-        <div class="grafico-titulo">
-          <h4>Diuresis horaria</h4>
-          <span class="leyenda"><i class="ref"></i>umbral de oliguria (0,5 mL/kg/h)</span>
-        </div>
-        <div class="lienzo-wrap"><canvas id="gDiuresis" height="170"></canvas></div>
-      </div>
-      <div class="grafico-bloque">
-        <div class="grafico-titulo"><h4>Volumen acumulado</h4><span class="leyenda" id="legVolumen"></span></div>
-        <div class="lienzo-wrap"><canvas id="gVolumen" height="150"></canvas></div>
-      </div>
-      <div class="doble">
-        <div class="grafico-bloque">
-          <div class="grafico-titulo"><h4>Temperatura de la orina</h4><span class="leyenda"><i class="ref amber"></i>febril ≥ 38 °C</span></div>
-          <div class="lienzo-wrap"><canvas id="gTemp" height="140"></canvas></div>
+      <div class="vacio" id="tendenciasVacio" hidden></div>
+      <div id="tendenciasContenido">
+        <div class="rango-tiempo" id="rangoTiempo">
+          <button class="rango activo" data-horas="6">6 h</button>
+          <button class="rango" data-horas="12">12 h</button>
+          <button class="rango" data-horas="24">24 h</button>
         </div>
         <div class="grafico-bloque">
-          <div class="grafico-titulo"><h4>Color en el tiempo</h4><span class="leyenda" id="legColor"></span></div>
-          <div class="lienzo-wrap"><canvas id="gColor" height="140"></canvas></div>
+          <div class="grafico-titulo">
+            <h4>Diuresis horaria</h4>
+            <span class="leyenda"><i class="ref"></i>umbral de oliguria (0,5 mL/kg/h)&nbsp;&nbsp;<i class="ref amber"></i>umbral de poliuria (3 mL/kg/h)</span>
+          </div>
+          <div class="lienzo-wrap"><canvas id="gDiuresis" height="170"></canvas></div>
+        </div>
+        <div class="grafico-bloque">
+          <div class="grafico-titulo"><h4>Volumen acumulado</h4><span class="leyenda" id="legVolumen"></span></div>
+          <div class="lienzo-wrap"><canvas id="gVolumen" height="150"></canvas></div>
+        </div>
+        <div class="doble">
+          <div class="grafico-bloque">
+            <div class="grafico-titulo"><h4>Temperatura de la orina</h4><span class="leyenda"><i class="ref amber"></i>febril ≥ 38 °C</span></div>
+            <div class="lienzo-wrap"><canvas id="gTemp" height="140"></canvas></div>
+          </div>
+          <div class="grafico-bloque">
+            <div class="grafico-titulo"><h4>Color en el tiempo</h4><span class="leyenda" id="legColor"></span></div>
+            <div class="lienzo-wrap"><canvas id="gColor" height="140"></canvas></div>
+          </div>
         </div>
       </div>
     </div>
@@ -290,7 +304,7 @@
         un vaciado, etc.). Es solo para esta computadora — se puede cambiar en cualquier momento desde el ícono de
         arriba o desde Configuración, por ejemplo al pasar el turno.</p>
       <div class="fila">
-        <div class="campo"><label>Nombre y apellido</label><input type="text" id="opNombre" placeholder="Ej: Sevinsky, Lara"></div>
+        <div class="campo"><label>Apellido y nombre</label><input type="text" id="opNombre" placeholder="Ej: Sevinsky, Lara"></div>
         <div class="campo"><label>Rol</label><select id="opRol">
           <option value="Enfermero/a">Enfermero/a</option>
           <option value="Médico/a">Médico/a</option>
@@ -300,6 +314,45 @@
       <div class="acciones">
         <button class="btn secundario chico oculto" id="btnInvitadoOperador">Continuar como invitado</button>
         <button class="btn chico" id="btnGuardarOperador">Guardar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ MODAL TRASLADAR ============================ -->
+<div class="modal" id="modalTrasladar" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal-caja">
+    <header class="modal-head">
+      <h2 id="trasTitulo">Trasladar paciente</h2>
+      <button class="ico-btn" id="btnCerrarTrasladar" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </header>
+    <div class="modal-cuerpo">
+      <p class="nota">El paciente se mueve con su dispositivo, su historial y sus registros a la cama que elijas.
+        La cama actual queda libre.</p>
+      <div class="subtitulo">Camas libres</div>
+      <div id="listaCamasLibres" class="lista-dispositivos"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================ MODAL SILENCIAR ============================ -->
+<div class="modal" id="modalSilenciar" role="dialog" aria-modal="true" aria-hidden="true">
+  <div class="modal-caja">
+    <header class="modal-head">
+      <h2>Silenciar alerta</h2>
+      <button class="ico-btn" id="btnCerrarSilenciar" aria-label="Cerrar">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+      </button>
+    </header>
+    <div class="modal-cuerpo">
+      <p class="nota" id="silTitulo"></p>
+      <p class="nota">¿El paciente ya fue atendido por esta alerta, o todavía está en espera? Según la respuesta se
+        reprograma cuánto puede esperar antes de volver a sonar, para no saturar el panel de alertas.</p>
+      <div class="acciones">
+        <button class="btn secundario chico" id="btnSilenciarEspera">Está en espera</button>
+        <button class="btn chico" id="btnSilenciarAtendido">Paciente atendido</button>
       </div>
     </div>
   </div>

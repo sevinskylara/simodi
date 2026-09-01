@@ -20,6 +20,7 @@ var Acciones = (function () {
   }
 
   function agregarCama() {
+    if (!confirm('¿Agregar una nueva cama a la sala?')) return;
     var n = Modelo.estado.camas.length + 1;
     var letra = 'A';
     var num = n;
@@ -29,7 +30,8 @@ var Acciones = (function () {
       id: id,
       etiqueta: 'UTI-' + String(num).padStart(2, '0'),
       pacienteId: null,
-      dispositivoId: null
+      dispositivoId: null,
+      serieInventario: null
     };
 
     Modelo.estado.camas.push(cama);
@@ -42,13 +44,53 @@ var Acciones = (function () {
     guardar();
     UI.pintarTodo();
     UI.toast('Cama agregada');
+    // Se abre de una la ficha de la cama: falta vincular el n.º de
+    // inventario y, si corresponde, asignar paciente y dispositivo.
+    UI.abrirDetalle(id);
+  }
+
+  function guardarSerieInventario(camaId, serie) {
+    var cama = Modelo.buscarCama(camaId);
+    if (!cama) return;
+    cama.serieInventario = serie || null;
+    Modelo.registrarEvento(camaId, 'sistema',
+      serie ? ('N.º de inventario actualizado: ' + serie) : 'N.º de inventario eliminado',
+      null, Operador.actual());
+
+    if (typeof Nube !== 'undefined' && Nube.activo()) {
+      Nube.guardarCama(cama);
+    }
+
+    guardar();
+    UI.toast('N.º de inventario guardado');
+  }
+
+  function eliminarCama(id) {
+    var cama = Modelo.buscarCama(id);
+    if (!cama) return;
+    if (cama.pacienteId || cama.dispositivoId) {
+      UI.toast('Sólo se pueden eliminar camas libres');
+      return;
+    }
+    if (!confirm('¿Eliminar la cama ' + cama.etiqueta + '? Esta acción no se puede deshacer.')) return;
+
+    Modelo.eliminarCama(id);
+    Modelo.registrarEvento(null, 'sistema', 'Cama ' + cama.etiqueta + ' eliminada de la sala', null, Operador.actual());
+
+    if (typeof Nube !== 'undefined' && Nube.activo()) {
+      Nube.eliminarCama(id);
+    }
+
+    guardar();
+    UI.pintarTodo();
+    UI.toast('Cama eliminada');
   }
 
   function cambiarEscenario(dispId, clave, reiniciar) {
     Simulador.cambiarEscenario(
       dispId,
       clave,
-      reiniciar ? 8 : 0,
+      reiniciar ? 26 : 0,
       Operador.actual()
     );
 
@@ -97,6 +139,42 @@ var Acciones = (function () {
     guardar();
     UI.pintarTodo();
     UI.toast('Vaciado registrado: ' + U.num(mlVaciados, 0) + ' mL');
+  }
+
+
+  function trasladarPaciente(origenId, destinoId) {
+    var ok = Modelo.trasladarPaciente(origenId, destinoId, Operador.actual());
+    if (!ok) { UI.toast('No se pudo trasladar: la cama destino ya no está libre.', 'error'); return false; }
+    guardar();
+    UI.pintarTodo();
+    UI.toast('Paciente trasladado a ' + Modelo.buscarCama(destinoId).etiqueta);
+    return true;
+  }
+
+
+  /* ------------------------------ Alertas -------------------------------- */
+
+  /* Silenciar una alerta reprograma su reaparición según el motivo elegido
+     (ver CFG.umbrales.reAlertaMin) y deja constancia de quién lo hizo. No
+     está disponible para invitados: sin nombre cargado no hay a quién
+     imputar la decisión clínica de posponer una alarma. */
+  function silenciarAlerta(codigo, motivo) {
+    if (Operador.actual() === 'Invitado') {
+      UI.toast('Para silenciar alarmas hace falta identificarse con un nombre.', 'error');
+      return false;
+    }
+
+    var al = Alertas.silenciar(codigo, motivo);
+    if (!al) return false;
+
+    var etiqueta = motivo === 'atendido' ? 'paciente atendido' : 'paciente en espera';
+    Modelo.registrarEvento(al.camaId, 'silencio',
+      Operador.actual() + ' silenció "' + al.titulo + '" · ' + etiqueta, null, Operador.actual());
+
+    guardar();
+    UI.pintarTodo();
+    UI.toast('Alerta silenciada · ' + etiqueta);
+    return true;
   }
 
 
@@ -222,8 +300,12 @@ var Acciones = (function () {
     guardar: guardar,
     cambiarModo: cambiarModo,
     agregarCama: agregarCama,
+    eliminarCama: eliminarCama,
+    guardarSerieInventario: guardarSerieInventario,
     cambiarEscenario: cambiarEscenario,
     vaciarBolsa: vaciarBolsa,
+    trasladarPaciente: trasladarPaciente,
+    silenciarAlerta: silenciarAlerta,
     exportarCamaCsv: exportarCamaCsv,
     exportarTodoCsv: exportarTodoCsv
   };
@@ -304,7 +386,11 @@ function iniciarSimodi() {
       },
 
 
-      camas: function (mapa) {
+      camas: function (mapa, eliminadas) {
+
+        (eliminadas || []).forEach(function (id) {
+          Modelo.eliminarCama(id);
+        });
 
         Object.keys(mapa).forEach(function (id) {
           Modelo.aplicarCamaRemota(mapa[id]);

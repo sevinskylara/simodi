@@ -67,7 +67,8 @@ var Modelo = (function () {
       { cama:'A3', nombre:'Quiroga, Beatriz', hc:'HC-40190', edad:77, sexo:'F', pesoKg:55, escenario:'sepsis',        dx:'Neumonía grave de la comunidad' },
       { cama:'A4', nombre:'Ledesma, Hugo',    hc:'HC-40251', edad:41, sexo:'M', pesoKg:79, escenario:'poliuria',      dx:'TEC grave · sospecha de diabetes insípida' },
       { cama:'A6', nombre:'Pereyra, Nadia',   hc:'HC-40260', edad:33, sexo:'F', pesoKg:61, escenario:'hematuria',     dx:'Post-RTU vesical' },
-      { cama:'A7', nombre:'Ibarra, Carlos',   hc:'HC-40204', edad:62, sexo:'M', pesoKg:95, escenario:'obstruccion',   dx:'Pancreatitis aguda grave' }
+      { cama:'A7', nombre:'Ibarra, Carlos',   hc:'HC-40204', edad:62, sexo:'M', pesoKg:95, escenario:'obstruccion',   dx:'Pancreatitis aguda grave' },
+      { cama:'A5', nombre:'Vega, Rosa',       hc:'HC-40277', edad:70, sexo:'F', pesoKg:66, escenario:'enlace_intermitente', dx:'Post-operatorio de cadera' }
     ];
 
     E.camas = CFG.camasIniciales.map(function (c) {
@@ -87,8 +88,13 @@ var Modelo = (function () {
       cama.pacienteId = p.id;
       cama.dispositivoId = d.id;
 
-      // Se rellenan 8 h de historial para que la central "ya venga andando".
-      Simulador.precargar(d, p, 8);
+      // Batería inicial distinta por equipo, para que la sala de ejemplo no
+      // muestre los ocho dispositivos con el mismo nivel de carga.
+      d.bat = Math.round(35 + Math.random() * 65);
+
+      // Se rellenan 26 h de historial para que la central "ya venga andando"
+      // y para que las tres ventanas de tendencias (6/12/24 h) muestren datos distintos.
+      Simulador.precargar(d, p, 26);
     });
 
     registrarEvento(null, 'sistema', 'Central iniciada · sala de ejemplo cargada');
@@ -141,6 +147,13 @@ var Modelo = (function () {
     return Object.keys(E.dispositivos).map(function (k) { return E.dispositivos[k]; })
       .filter(function (d) { return !usados[d.id]; });
   }
+  function camasLibres() {
+    return E.camas.filter(function (c) { return !c.pacienteId && !c.dispositivoId; });
+  }
+
+  function eliminarCama(id) {
+    E.camas = E.camas.filter(function (c) { return c.id !== id; });
+  }
 
   function asignar(camaId, pacienteId, dispositivoId, operador) {
     var cama = buscarCama(camaId);
@@ -162,6 +175,28 @@ var Modelo = (function () {
     registrarEvento(camaId, 'asignacion',
       p ? ('Vinculado ' + p.nombre + (d ? ' ↔ ' + d.serie : '')) : 'Cama liberada', null, operador);
     sincronizarCama(cama);
+  }
+
+  /* Mueve al paciente (con su dispositivo, historial y registros) de una
+     cama a otra que esté libre. La cama de origen queda disponible. */
+  function trasladarPaciente(origenId, destinoId, operador) {
+    var origen = buscarCama(origenId), destino = buscarCama(destinoId);
+    if (!origen || !destino) return false;
+    if (!origen.pacienteId) return false;
+    if (destino.pacienteId || destino.dispositivoId) return false;
+
+    var pacienteId = origen.pacienteId, dispositivoId = origen.dispositivoId;
+    var p = pacienteId ? E.pacientes[pacienteId] : null;
+
+    origen.pacienteId = null; origen.dispositivoId = null;
+    destino.pacienteId = pacienteId; destino.dispositivoId = dispositivoId;
+
+    var nombre = p ? p.nombre : 'Paciente';
+    registrarEvento(origenId, 'traslado', nombre + ' trasladado/a a ' + destino.etiqueta, null, operador);
+    registrarEvento(destinoId, 'traslado', nombre + ' trasladado/a desde ' + origen.etiqueta, dispositivoId, operador);
+    sincronizarCama(origen);
+    sincronizarCama(destino);
+    return true;
   }
 
   function altaPaciente(datos) {
@@ -279,6 +314,7 @@ var Modelo = (function () {
     if (data.etiqueta) cama.etiqueta = data.etiqueta;
     cama.pacienteId = data.pacienteId || null;
     cama.dispositivoId = data.dispositivoId || null;
+    cama.serieInventario = data.serieInventario || null;
   }
 
   function aplicarEventoRemoto(ev) {
@@ -289,6 +325,28 @@ var Modelo = (function () {
   }
 
   /* ====================== Cálculos sobre la serie ==================== */
+
+  /* Horas de batería restante, estimadas por la tasa de descarga real de
+     las últimas horas (no un supuesto fijo): compara la batería de ahora
+     contra la de hace hasta 4 h. Sirve sobre todo cuando el equipo está
+     incomunicado (no se sabe cuándo va a poder cargarse). Null si no hay
+     suficiente historial o si la batería no está cayendo (recién cambiada,
+     o el equipo está enchufado). */
+  function horasBateriaRestante(d) {
+    var ms = d.muestras;
+    if (ms.length < 2) return null;
+    var fin = ms[ms.length - 1];
+    var ini = fin, ventanaMs = 4 * 3600000;
+    for (var i = ms.length - 1; i >= 0; i--) {
+      if (fin.t - ms[i].t > ventanaMs) break;
+      ini = ms[i];
+    }
+    var horas = (fin.t - ini.t) / 3600000;
+    if (horas <= 0) return null;
+    var caida = ini.bat - fin.bat;
+    if (caida <= 0) return null;
+    return fin.bat / (caida / horas);
+  }
 
   /* Volumen acumulado interpolado en un instante t. */
   function volumenEn(muestras, t) {
@@ -405,6 +463,7 @@ var Modelo = (function () {
       mlKgH6: (mlH6 !== null && pesoKg) ? mlH6 / pesoKg : null,
       mlKgH24: (mlH24 !== null && pesoKg) ? mlH24 / pesoKg : null,
       umbralMlH: pesoKg ? CFG.umbrales.oliguria * pesoKg : null,
+      umbralPoliuriaMlH: pesoKg ? CFG.umbrales.poliuria * pesoKg : null,
 
       buckets: buckets,
       tempC: ultima ? ultima.tempC : null,
@@ -458,7 +517,10 @@ var Modelo = (function () {
     buscarCama: buscarCama,
     camaDeDispositivo: camaDeDispositivo,
     dispositivosLibres: dispositivosLibres,
+    camasLibres: camasLibres,
+    eliminarCama: eliminarCama,
     asignar: asignar,
+    trasladarPaciente: trasladarPaciente,
     altaPaciente: altaPaciente,
     reiniciarDispositivo: reiniciarDispositivo,
     ingresarMuestra: ingresarMuestra,
@@ -467,6 +529,7 @@ var Modelo = (function () {
     bucketsHorarios: bucketsHorarios,
     volumenEn: volumenEn,
     tasaMlH: tasaMlH,
+    horasBateriaRestante: horasBateriaRestante,
     camasVisibles: camasVisibles,
     aplicarPacienteRemoto: aplicarPacienteRemoto,
     aplicarCamaRemota: aplicarCamaRemota,
