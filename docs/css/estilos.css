@@ -248,8 +248,8 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal
 .bateria{ display:flex; align-items:center; gap:4px; font-family:var(--mono); font-size:10px; color:var(--texto-dim); }
 .bat-cuerpo{ width:20px; height:10px; border:1.3px solid currentColor; border-radius:2.5px; padding:1.3px; }
 .bat-relleno{ height:100%; background:currentColor; border-radius:1px; }
-.bateria.baja{ color:var(--aviso); }
-.bateria.critica{ color:var(--critico); }
+.bateria.baja{ color:var(--critico); }
+.bateria.critica{ color:var(--critico); animation:latido 1.6s infinite; }
 
 .cama-cuerpo{ padding:13px 15px; display:flex; flex-direction:column; gap:12px; flex:1; }
 .dato-principal{ display:flex; align-items:flex-end; justify-content:space-between; gap:10px; }
@@ -266,14 +266,15 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal
 
 .spark{ width:112px; height:38px; flex-shrink:0; }
 
-.mini-datos{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; }
+.mini-datos{ display:grid; grid-template-columns:repeat(3,1fr); gap:9px; align-items:stretch; }
 .mini{
   background:var(--panel-2); border:1px solid var(--borde-suave); border-radius:9px;
-  padding:8px 10px; display:flex; flex-direction:column; gap:3px; min-width:0;
+  padding:8px 10px; display:flex; flex-direction:column; gap:3px; min-width:0; height:52px; box-sizing:border-box;
 }
 .mini-rot{ font-family:var(--mono); font-size:9.5px; letter-spacing:.07em; text-transform:uppercase; color:var(--texto-tenue); }
-.mini-val{ font-family:var(--mono); font-size:15px; font-weight:600; display:flex; align-items:center; gap:6px; }
-.mini-val small{ font-size:10px; color:var(--texto-dim); font-weight:400; }
+.mini-val{ font-family:var(--mono); font-size:15px; font-weight:600; display:flex; align-items:center; gap:6px; min-width:0; }
+.mini-val small{ font-size:10px; color:var(--texto-dim); font-weight:400; flex-shrink:0; }
+.mini-val-txt{ overflow:hidden; text-overflow:ellipsis; white-space:nowrap; min-width:0; }
 .mini.alerta .mini-val{ color:var(--critico); }
 .mini.aviso .mini-val{ color:var(--aviso); }
 .muestra-color{ width:15px; height:15px; border-radius:4px; border:1px solid rgba(255,255,255,.18); flex-shrink:0; }

@@ -87,8 +87,13 @@ var Modelo = (function () {
       cama.pacienteId = p.id;
       cama.dispositivoId = d.id;
 
-      // Se rellenan 8 h de historial para que la central "ya venga andando".
-      Simulador.precargar(d, p, 8);
+      // Batería inicial distinta por equipo, para que la sala de ejemplo no
+      // muestre los ocho dispositivos con el mismo nivel de carga.
+      d.bat = Math.round(35 + Math.random() * 65);
+
+      // Se rellenan 26 h de historial para que la central "ya venga andando"
+      // y para que las tres ventanas de tendencias (6/12/24 h) muestren datos distintos.
+      Simulador.precargar(d, p, 26);
     });
 
     registrarEvento(null, 'sistema', 'Central iniciada · sala de ejemplo cargada');
@@ -405,6 +410,7 @@ var Modelo = (function () {
       mlKgH6: (mlH6 !== null && pesoKg) ? mlH6 / pesoKg : null,
       mlKgH24: (mlH24 !== null && pesoKg) ? mlH24 / pesoKg : null,
       umbralMlH: pesoKg ? CFG.umbrales.oliguria * pesoKg : null,
+      umbralPoliuriaMlH: pesoKg ? CFG.umbrales.poliuria * pesoKg : null,
 
       buckets: buckets,
       tempC: ultima ? ultima.tempC : null,

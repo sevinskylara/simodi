@@ -48,7 +48,7 @@ var Acciones = (function () {
     Simulador.cambiarEscenario(
       dispId,
       clave,
-      reiniciar ? 8 : 0,
+      reiniciar ? 26 : 0,
       Operador.actual()
     );
 

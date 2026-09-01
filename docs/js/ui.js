@@ -195,7 +195,7 @@ var UI = (function () {
         '</div>' +
         '<div class="mini-datos">' +
           '<div class="mini' + (claseTempMini(m.tempC)) + '"><div class="mini-rot">Temp.</div><div class="mini-val">' + (m.tempC === null ? '—' : U.num(m.tempC, 1)) + '<small>°C</small></div></div>' +
-          '<div class="mini' + (m.color && m.color.anomalo ? ' alerta' : '') + '"><div class="mini-rot">Color</div><div class="mini-val"><span class="muestra-color" style="background:' + (m.color ? m.color.hex : '#333') + '"></span>' + (m.color ? U.esc(m.color.nombre) : '—') + '</div></div>' +
+          '<div class="mini' + (m.color && m.color.anomalo ? ' alerta' : '') + '"><div class="mini-rot">Color</div><div class="mini-val"><span class="muestra-color" style="background:' + (m.color ? m.color.hex : '#333') + '"></span><span class="mini-val-txt">' + (m.color ? U.esc(m.color.nombre) : '—') + '</span></div></div>' +
           '<div class="mini"><div class="mini-rot">Acumulado</div><div class="mini-val">' + U.num(m.volTotalMl, 0) + '<small>mL</small></div></div>' +
         '</div>' +
         '<div class="barra-bolsa">' +
@@ -391,9 +391,9 @@ var UI = (function () {
     tabDetalle = 'tendencias';
     U.$$('.tab-det').forEach(function (b) { b.classList.toggle('activo', b.dataset.tab === tabDetalle); });
     U.$$('.tab-panel').forEach(function (p) { p.classList.toggle('activo', p.dataset.panel === tabDetalle); });
-    renderDetalle();
     U.$('#modalDetalle').classList.add('abierto');
     U.$('#modalDetalle').setAttribute('aria-hidden', 'false');
+    renderDetalle();
   }
   function cerrarDetalle() {
     camaAbierta = null;
@@ -473,7 +473,7 @@ var UI = (function () {
     if (!ms.length) ms = d.muestras.slice(-2);
 
     Graf.barrasDiuresis(U.$('#gDiuresis'), Modelo.bucketsHorarios(d, rangoHoras), {
-      pesoKg: p ? p.pesoKg : null, umbralMlH: m.umbralMlH
+      pesoKg: p ? p.pesoKg : null, umbralMlH: m.umbralMlH, umbralPoliuriaMlH: m.umbralPoliuriaMlH
     });
 
     Graf.serie(U.$('#gVolumen'), ms.map(function (x) { return { t: x.t, v: x.volTotalMl, buffer: x.origen === 'buffer' }; }), {
