@@ -163,7 +163,7 @@
           <option value="criticidad">Por criticidad</option>
           <option value="diuresis">Por diuresis</option>
         </select>
-        <button class="btn secundario chico" id="btnNuevaCama">+ Cama</button>
+        <button class="btn secundario" id="btnNuevaCama">+ Cama</button>
       </div>
     </div>
     <div class="mural" id="mural"></div>
@@ -178,7 +178,10 @@
       <div class="lista-alertas" id="listaAlertas"></div>
     </section>
     <section class="panel-eventos">
-      <header><h3>Registro de eventos</h3></header>
+      <header id="cabeceraEventos" title="Expandir para navegar el registro completo">
+        <h3>Registro de eventos</h3>
+        <svg class="chev" viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="m6 9 6 6 6-6"/></svg>
+      </header>
       <div class="lista-eventos" id="listaEventos"></div>
     </section>
   </aside>

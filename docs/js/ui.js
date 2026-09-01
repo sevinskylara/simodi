@@ -16,6 +16,7 @@ var UI = (function () {
   var filtroTexto = '';
   var filtroEstado = 'todas';
   var orden = 'cama';
+  var eventosExpandido = false;
 
   /* ============================== KPIs ================================ */
 
@@ -313,7 +314,7 @@ var UI = (function () {
   }
 
   function pintarEventos() {
-    var ev = Modelo.estado.eventos.slice(-40).reverse();
+    var ev = Modelo.estado.eventos.slice(-(eventosExpandido ? 300 : 40)).reverse();
     var el = U.$('#listaEventos');
     if (!ev.length) { el.innerHTML = '<div class="vacio">Sin eventos todavía.</div>'; return; }
     el.innerHTML = ev.map(function (e) {
@@ -483,7 +484,11 @@ var UI = (function () {
 
     var panelEventos = U.$('.panel-eventos');
     var alturaEventos;
-    if (filas.length >= 3) {
+    if (eventosExpandido) {
+      // Expandido a mano: ignora la altura atada al mural y ocupa buena
+      // parte del alto de la ventana para poder navegar el historial.
+      alturaEventos = Math.round(window.innerHeight * 0.7);
+    } else if (filas.length >= 3) {
       alturaEventos = filas[2].height;
     } else if (filas.length > 0) {
       alturaEventos = Math.max.apply(null, filas.map(function (f) { return f.height; }));
@@ -989,6 +994,13 @@ var UI = (function () {
       Modelo.estado.tema = nuevo;
       document.documentElement.dataset.tema = nuevo;
       Acciones.guardar();
+    };
+
+    U.$('#cabeceraEventos').onclick = function () {
+      eventosExpandido = !eventosExpandido;
+      U.$('.panel-eventos').classList.toggle('expandido', eventosExpandido);
+      pintarEventos();
+      igualarAlturasLateral();
     };
 
     U.$('#buscar').oninput = function (ev) { filtroTexto = ev.target.value; pintarMural(); };

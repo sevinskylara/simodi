@@ -129,6 +129,10 @@ body{
 }
 .ico-btn:hover{ color:var(--texto); border-color:var(--teal); }
 .ico-btn.mudo{ color:var(--critico); border-color:rgba(239,91,91,.4); }
+#btnCerrarSesion:hover{
+  color:var(--critico); border-color:var(--critico);
+  box-shadow:0 0 0 3px rgba(239,91,91,.22), 0 0 10px rgba(239,91,91,.35);
+}
 
 /* ============================ AVISO MODO ============================== */
 .aviso-modo{
@@ -335,6 +339,7 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal
   display:flex; flex-direction:column;
 }
 .panel-alertas{ border-width:2px; transition:border-color .25s; }
+.panel-eventos{ transition:height .25s ease; }
 .panel-alertas.nivel-tecnica{ border-color:var(--neutro); }
 .panel-alertas.nivel-media{ border-color:var(--aviso); }
 .panel-alertas.nivel-alta{ border-color:var(--grave); }
@@ -353,6 +358,16 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal
   padding:12px 15px; border-bottom:1px solid var(--borde-suave); flex-shrink:0;
 }
 .panel-alertas h3, .panel-eventos h3{ font-size:13.5px; font-weight:700; letter-spacing:.02em; }
+.panel-eventos > header{
+  cursor:pointer; user-select:none; transition:border-color .15s, box-shadow .15s;
+  border-radius:var(--r) var(--r) 0 0;
+}
+.panel-eventos:hover > header{
+  border-color:var(--teal);
+  box-shadow:inset 0 0 0 2px var(--teal), inset 0 0 16px var(--teal-tenue);
+}
+.panel-eventos > header .chev{ color:var(--texto-tenue); flex-shrink:0; transition:transform .2s; }
+.panel-eventos.expandido > header .chev{ transform:rotate(180deg); }
 .contador{
   font-family:var(--mono); font-size:11px; font-weight:700; min-width:22px; text-align:center;
   padding:2px 7px; border-radius:20px; background:var(--neutro-tenue); color:var(--texto-dim);
