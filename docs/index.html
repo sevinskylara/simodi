@@ -3,28 +3,45 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <title>SÍMODI · Central de diuresis</title>
-<meta name="description" content="SÍMODI — Sistema de Monitoreo de Diuresis. Central de enfermería multi-cama para el instrumento de uresis (peso, temperatura y color de orina) sobre ESP32.">
+
+<meta
+  name="description"
+  content="SÍMODI — Sistema de Monitoreo de Diuresis. Central de enfermería multi-cama para el instrumento de uresis (peso, temperatura y color de orina) sobre ESP32."
+>
+
 <link rel="icon" type="image/png" sizes="512x512" href="img/favicon-512.png">
 <link rel="icon" type="image/png" sizes="48x48" href="img/favicon-48.png">
 <link rel="icon" type="image/png" sizes="32x32" href="img/favicon-32.png">
 <link rel="icon" type="image/png" sizes="16x16" href="img/favicon-16.png">
 <link rel="apple-touch-icon" href="img/favicon-180.png">
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<link
+  href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&family=Roboto+Mono:wght@400;500;600&display=swap"
+  rel="stylesheet"
+>
+
 <link rel="stylesheet" href="css/estilos.css">
 <link rel="stylesheet" href="css/auth.css">
 </head>
+
 <body>
 
 <!-- ========================= AUTENTICACIÓN ========================= -->
 
 <div class="auth-pantalla" id="authPantalla">
+
   <div class="auth-caja">
 
     <div class="auth-marca">
-      <img src="img/simodi-icono.png" alt="SÍMODI" class="auth-logo">
+      <div class="auth-logo-contenedor">
+        <img src="img/simodi-icono.png" alt="SÍMODI" class="auth-logo">
+      </div>
+
       <h1>SÍMODI</h1>
       <p>Sistema Inteligente de Monitoreo de Diuresis</p>
     </div>
@@ -51,7 +68,11 @@
         >
       </div>
 
-      <button type="submit" class="auth-boton" id="btnLogin">
+      <button
+        type="submit"
+        class="auth-boton"
+        id="btnLogin"
+      >
         INGRESAR
       </button>
 
@@ -64,252 +85,890 @@
     </div>
 
   </div>
+
 </div>
 
+
 <!-- ============================ BARRA SUPERIOR ============================ -->
+
 <header class="barra">
+
   <div class="marca">
-    <img class="marca-icono" src="img/simodi-icono.png" alt="SÍMODI">
+
+    <div class="marca-icono-wrap">
+      <img
+        class="marca-icono"
+        src="img/simodi-icono.png"
+        alt="SÍMODI"
+      >
+    </div>
+
     <div class="marca-texto">
       <h1>SÍMODI</h1>
       <p>Sistema de Monitoreo de Diuresis · Terapia Intensiva</p>
     </div>
+
   </div>
 
-  <div class="modos" role="tablist" aria-label="Modo de operación">
-    <button class="modo activo" data-modo="piloto" role="tab" aria-selected="true">
-      <span class="punto-modo"></span>PILOTO
+
+  <div
+    class="modos"
+    role="tablist"
+    aria-label="Modo de operación"
+  >
+
+    <button
+      class="modo activo"
+      data-modo="piloto"
+      role="tab"
+      aria-selected="true"
+    >
+      <span class="punto-modo"></span>
+      PILOTO
     </button>
-    <button class="modo" data-modo="real" role="tab" aria-selected="false">
-      <span class="punto-modo"></span>REAL · ESP32
+
+    <button
+      class="modo"
+      data-modo="real"
+      role="tab"
+      aria-selected="false"
+    >
+      <span class="punto-modo"></span>
+      REAL · ESP32
     </button>
+
   </div>
+
 
   <div class="barra-estado">
-    <button class="chip chip-operador" id="chipOperador" title="Cambiar quién está operando esta computadora">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="3.4"/><path d="M4.5 20a7.5 7.5 0 0 1 15 0"/></svg>
+
+    <button
+      class="chip chip-operador"
+      id="chipOperador"
+      title="Cambiar quién está operando esta computadora"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="13"
+        height="13"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <circle cx="12" cy="8" r="3.4"/>
+        <path d="M4.5 20a7.5 7.5 0 0 1 15 0"/>
+      </svg>
+
       <span class="chip-txt" id="operadorTxt">—</span>
     </button>
-    <div class="chip" id="chipNube" title="Sincronización con la base compartida">
-      <span class="led"></span><span class="chip-txt">Sin conectar</span>
+
+
+    <div
+      class="chip"
+      id="chipNube"
+      title="Sincronización con la base compartida"
+    >
+      <span class="led"></span>
+      <span class="chip-txt">Sin conectar</span>
     </div>
-    <div class="chip" id="chipEnlace" title="Estado del enlace con el dispositivo">
-      <span class="led"></span><span class="chip-txt">Simulación</span>
+
+
+    <div
+      class="chip"
+      id="chipEnlace"
+      title="Estado del enlace con el dispositivo"
+    >
+      <span class="led"></span>
+      <span class="chip-txt">Simulación</span>
     </div>
-    <div class="chip oculto" id="chipBuffer" title="Muestras guardadas mientras no hubo señal">
-      <svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M4 12h16M4 17h10"/></svg>
+
+
+    <div
+      class="chip oculto"
+      id="chipBuffer"
+      title="Muestras guardadas mientras no hubo señal"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="13"
+        height="13"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+      >
+        <path d="M4 7h16M4 12h16M4 17h10"/>
+      </svg>
+
       <span class="chip-txt">0 en búfer</span>
     </div>
-    <div class="reloj" id="reloj">--:--:--</div>
-    <button class="ico-btn" id="btnSonido" title="Silenciar alarmas" aria-label="Silenciar alarmas">
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M11 5 6 9H3v6h3l5 4V5z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/><path d="M18.5 5.5a9 9 0 0 1 0 13"/>
+
+
+    <div class="reloj" id="reloj">
+      --:--:--
+    </div>
+
+
+    <button
+      class="ico-btn"
+      id="btnSonido"
+      title="Silenciar alarmas"
+      aria-label="Silenciar alarmas"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="17"
+        height="17"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M11 5 6 9H3v6h3l5 4V5z"/>
+        <path d="M15.5 8.5a5 5 0 0 1 0 7"/>
+        <path d="M18.5 5.5a9 9 0 0 1 0 13"/>
       </svg>
     </button>
-    <button class="ico-btn" id="btnTema" title="Cambiar tema" aria-label="Cambiar tema">
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
-    </button>
-    <button class="ico-btn" id="btnConfig" title="Configuración" aria-label="Configuración">
-      <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V1a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17 2.6a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1.2z"/>
+
+
+    <button
+      class="ico-btn"
+      id="btnTema"
+      title="Cambiar tema"
+      aria-label="Cambiar tema"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="17"
+        height="17"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+      >
+        <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/>
       </svg>
     </button>
-    <button class="ico-btn" id="btnCerrarSesion" title="Cerrar sesión" aria-label="Cerrar sesión">
-  <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M10 17l5-5-5-5"/>
-    <path d="M15 12H3"/>
-    <path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/>
-  </svg>
-</button>
+
+
+    <button
+      class="ico-btn"
+      id="btnConfig"
+      title="Configuración"
+      aria-label="Configuración"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="17"
+        height="17"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-2.7 1.1V21a2 2 0 1 1-4 0v-.1A1.6 1.6 0 0 0 7 19.4a1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0-1.1-2.7H1a2 2 0 1 1 0-4h.1A1.6 1.6 0 0 0 2.6 7a1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 2.7-1.1V1a2 2 0 1 1 4 0v.1A1.6 1.6 0 0 0 17 2.6a1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0 1.1 2.7H23a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1.2z"/>
+      </svg>
+    </button>
+
+
+    <button
+      class="ico-btn"
+      id="btnCerrarSesion"
+      title="Cerrar sesión"
+      aria-label="Cerrar sesión"
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="17"
+        height="17"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="1.8"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      >
+        <path d="M10 17l5-5-5-5"/>
+        <path d="M15 12H3"/>
+        <path d="M14 3h5a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-5"/>
+      </svg>
+    </button>
+
   </div>
+
 </header>
 
+
 <!-- ====================== AVISO DE MODO REAL / ENLACE ===================== -->
+
 <div class="aviso-modo oculto" id="avisoReal">
+
   <div class="aviso-txt">
-    <b>Modo REAL.</b> <span id="avisoRealDetalle">Sin dispositivo conectado. Configurá el enlace para recibir datos del ESP32.</span>
+    <b>Modo REAL.</b>
+
+    <span id="avisoRealDetalle">
+      Sin dispositivo conectado. Configurá el enlace para recibir datos del ESP32.
+    </span>
   </div>
+
   <label class="check">
-    <input type="checkbox" id="chkPilotoEnReal" checked>
+    <input
+      type="checkbox"
+      id="chkPilotoEnReal"
+      checked
+    >
+
     <span>Mantener camas piloto visibles</span>
   </label>
-  <button class="btn chico" id="btnConectarRapido">Conectar dispositivo</button>
+
+  <button
+    class="btn chico"
+    id="btnConectarRapido"
+  >
+    Conectar dispositivo
+  </button>
+
 </div>
 
+
 <!-- ================================ KPIs ================================= -->
-<section class="kpis" id="kpis"></section>
+
+<section
+  class="kpis"
+  id="kpis"
+></section>
+
 
 <!-- ================================ CUERPO =============================== -->
+
 <div class="cuerpo">
+
   <main class="mural-zona">
+
     <div class="mural-head">
-      <h2>Camas monitorizadas <span class="conteo" id="conteoCamas">0</span></h2>
+
+      <h2>
+        Camas monitorizadas
+
+        <span
+          class="conteo"
+          id="conteoCamas"
+        >
+          0
+        </span>
+      </h2>
+
+
       <div class="filtros">
+
         <div class="buscador">
-          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
-          <input type="search" id="buscar" placeholder="Paciente, cama o N.º de serie…">
+
+          <svg
+            viewBox="0 0 24 24"
+            width="14"
+            height="14"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+          >
+            <circle cx="11" cy="11" r="7"/>
+            <path d="m20 20-3.5-3.5"/>
+          </svg>
+
+          <input
+            type="search"
+            id="buscar"
+            placeholder="Paciente, cama o N.º de serie…"
+          >
+
         </div>
-        <select id="filtroEstado" title="Filtrar">
+
+
+        <select
+          id="filtroEstado"
+          title="Filtrar"
+        >
           <option value="todas">Todas las camas</option>
           <option value="alerta">Con alerta</option>
           <option value="oliguria">Oliguria / anuria</option>
           <option value="sinsenal">Sin señal</option>
           <option value="libres">Libres</option>
         </select>
-        <select id="orden" title="Ordenar">
+
+
+        <select
+          id="orden"
+          title="Ordenar"
+        >
           <option value="cama">Orden por cama</option>
           <option value="criticidad">Por criticidad</option>
           <option value="diuresis">Por diuresis</option>
         </select>
-        <button class="btn secundario chico" id="btnNuevaCama">+ Cama</button>
+
+
+        <button
+          class="btn secundario chico"
+          id="btnNuevaCama"
+        >
+          + Cama
+        </button>
+
       </div>
+
     </div>
-    <div class="mural" id="mural"></div>
+
+
+    <div
+      class="mural"
+      id="mural"
+    ></div>
+
   </main>
 
+
   <aside class="lateral">
+
     <section class="panel-alertas">
+
       <header>
         <h3>Alertas activas</h3>
-        <span class="contador" id="contAlertas">0</span>
+
+        <span
+          class="contador"
+          id="contAlertas"
+        >
+          0
+        </span>
       </header>
-      <div class="lista-alertas" id="listaAlertas"></div>
+
+      <div
+        class="lista-alertas"
+        id="listaAlertas"
+      ></div>
+
     </section>
+
+
     <section class="panel-eventos">
-      <header><h3>Registro de eventos</h3></header>
-      <div class="lista-eventos" id="listaEventos"></div>
+
+      <header>
+        <h3>Registro de eventos</h3>
+      </header>
+
+      <div
+        class="lista-eventos"
+        id="listaEventos"
+      ></div>
+
     </section>
+
   </aside>
+
 </div>
 
+
 <!-- ============================ MODAL DETALLE ============================ -->
-<div class="modal" id="modalDetalle" role="dialog" aria-modal="true" aria-hidden="true">
+
+<div
+  class="modal"
+  id="modalDetalle"
+  role="dialog"
+  aria-modal="true"
+  aria-hidden="true"
+>
+
   <div class="modal-caja ancha">
+
     <header class="modal-head">
+
       <div class="detalle-id">
-        <span class="tag-cama" id="detCama">—</span>
+
+        <span
+          class="tag-cama"
+          id="detCama"
+        >
+          —
+        </span>
+
         <div>
           <h2 id="detNombre">—</h2>
           <p id="detMeta">—</p>
         </div>
+
       </div>
+
+
       <div class="detalle-acciones">
-        <button class="btn secundario chico" id="btnAsignarDesdeDetalle">Asignar paciente</button>
-        <button class="btn secundario chico" id="btnVaciarBolsa">Registrar vaciado</button>
-        <button class="btn secundario chico" id="btnExportar">Exportar CSV</button>
-        <button class="ico-btn" id="btnCerrarDetalle" aria-label="Cerrar">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+
+        <button
+          class="btn secundario chico"
+          id="btnAsignarDesdeDetalle"
+        >
+          Asignar paciente
         </button>
+
+        <button
+          class="btn secundario chico"
+          id="btnVaciarBolsa"
+        >
+          Registrar vaciado
+        </button>
+
+        <button
+          class="btn secundario chico"
+          id="btnExportar"
+        >
+          Exportar CSV
+        </button>
+
+        <button
+          class="ico-btn"
+          id="btnCerrarDetalle"
+          aria-label="Cerrar"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="18"
+            height="18"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="2"
+            stroke-linecap="round"
+          >
+            <path d="M18 6 6 18M6 6l12 12"/>
+          </svg>
+        </button>
+
       </div>
+
     </header>
 
-    <div class="detalle-resumen" id="detResumen"></div>
+
+    <div
+      class="detalle-resumen"
+      id="detResumen"
+    ></div>
+
 
     <nav class="tabs-detalle">
-      <button class="tab-det activo" data-tab="tendencias">Tendencias</button>
-      <button class="tab-det" data-tab="dispositivo">Dispositivo y enlace</button>
-      <button class="tab-det" data-tab="eventos">Eventos</button>
+
+      <button
+        class="tab-det activo"
+        data-tab="tendencias"
+      >
+        Tendencias
+      </button>
+
+      <button
+        class="tab-det"
+        data-tab="dispositivo"
+      >
+        Dispositivo y enlace
+      </button>
+
+      <button
+        class="tab-det"
+        data-tab="eventos"
+      >
+        Eventos
+      </button>
+
     </nav>
 
-    <div class="tab-panel activo" data-panel="tendencias">
-      <div class="rango-tiempo" id="rangoTiempo">
-        <button class="rango activo" data-horas="6">6 h</button>
-        <button class="rango" data-horas="12">12 h</button>
-        <button class="rango" data-horas="24">24 h</button>
+
+    <div
+      class="tab-panel activo"
+      data-panel="tendencias"
+    >
+
+      <div
+        class="rango-tiempo"
+        id="rangoTiempo"
+      >
+
+        <button
+          class="rango activo"
+          data-horas="6"
+        >
+          6 h
+        </button>
+
+        <button
+          class="rango"
+          data-horas="12"
+        >
+          12 h
+        </button>
+
+        <button
+          class="rango"
+          data-horas="24"
+        >
+          24 h
+        </button>
+
       </div>
+
+
       <div class="grafico-bloque">
+
         <div class="grafico-titulo">
+
           <h4>Diuresis horaria</h4>
-          <span class="leyenda"><i class="ref"></i>umbral de oliguria (0,5 mL/kg/h)</span>
+
+          <span class="leyenda">
+            <i class="ref"></i>
+            umbral de oliguria (0,5 mL/kg/h)
+          </span>
+
         </div>
-        <div class="lienzo-wrap"><canvas id="gDiuresis" height="170"></canvas></div>
+
+        <div class="lienzo-wrap">
+          <canvas
+            id="gDiuresis"
+            height="170"
+          ></canvas>
+        </div>
+
       </div>
+
+
       <div class="grafico-bloque">
-        <div class="grafico-titulo"><h4>Volumen acumulado</h4><span class="leyenda" id="legVolumen"></span></div>
-        <div class="lienzo-wrap"><canvas id="gVolumen" height="150"></canvas></div>
+
+        <div class="grafico-titulo">
+
+          <h4>Volumen acumulado</h4>
+
+          <span
+            class="leyenda"
+            id="legVolumen"
+          ></span>
+
+        </div>
+
+        <div class="lienzo-wrap">
+          <canvas
+            id="gVolumen"
+            height="150"
+          ></canvas>
+        </div>
+
       </div>
+
+
       <div class="doble">
+
         <div class="grafico-bloque">
-          <div class="grafico-titulo"><h4>Temperatura de la orina</h4><span class="leyenda"><i class="ref amber"></i>febril ≥ 38 °C</span></div>
-          <div class="lienzo-wrap"><canvas id="gTemp" height="140"></canvas></div>
+
+          <div class="grafico-titulo">
+
+            <h4>Temperatura de la orina</h4>
+
+            <span class="leyenda">
+              <i class="ref amber"></i>
+              febril ≥ 38 °C
+            </span>
+
+          </div>
+
+          <div class="lienzo-wrap">
+            <canvas
+              id="gTemp"
+              height="140"
+            ></canvas>
+          </div>
+
         </div>
+
+
         <div class="grafico-bloque">
-          <div class="grafico-titulo"><h4>Color en el tiempo</h4><span class="leyenda" id="legColor"></span></div>
-          <div class="lienzo-wrap"><canvas id="gColor" height="140"></canvas></div>
+
+          <div class="grafico-titulo">
+
+            <h4>Color en el tiempo</h4>
+
+            <span
+              class="leyenda"
+              id="legColor"
+            ></span>
+
+          </div>
+
+          <div class="lienzo-wrap">
+            <canvas
+              id="gColor"
+              height="140"
+            ></canvas>
+          </div>
+
         </div>
+
       </div>
+
     </div>
 
-    <div class="tab-panel" data-panel="dispositivo">
+
+    <div
+      class="tab-panel"
+      data-panel="dispositivo"
+    >
       <div id="detDispositivo"></div>
     </div>
 
-    <div class="tab-panel" data-panel="eventos">
-      <div class="tabla-eventos" id="detEventos"></div>
+
+    <div
+      class="tab-panel"
+      data-panel="eventos"
+    >
+      <div
+        class="tabla-eventos"
+        id="detEventos"
+      ></div>
     </div>
+
   </div>
+
 </div>
+
 
 <!-- ============================ MODAL ASIGNAR ============================ -->
-<div class="modal" id="modalAsignar" role="dialog" aria-modal="true" aria-hidden="true">
+
+<div
+  class="modal"
+  id="modalAsignar"
+  role="dialog"
+  aria-modal="true"
+  aria-hidden="true"
+>
+
   <div class="modal-caja">
+
     <header class="modal-head">
-      <h2 id="asigTitulo">Asignar cama</h2>
-      <button class="ico-btn" id="btnCerrarAsignar" aria-label="Cerrar">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+
+      <h2 id="asigTitulo">
+        Asignar cama
+      </h2>
+
+      <button
+        class="ico-btn"
+        id="btnCerrarAsignar"
+        aria-label="Cerrar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
       </button>
+
     </header>
-    <div class="modal-cuerpo" id="asigCuerpo"></div>
+
+
+    <div
+      class="modal-cuerpo"
+      id="asigCuerpo"
+    ></div>
+
   </div>
+
 </div>
+
 
 <!-- ============================ MODAL CONFIG ============================= -->
-<div class="modal" id="modalConfig" role="dialog" aria-modal="true" aria-hidden="true">
+
+<div
+  class="modal"
+  id="modalConfig"
+  role="dialog"
+  aria-modal="true"
+  aria-hidden="true"
+>
+
   <div class="modal-caja">
+
     <header class="modal-head">
-      <h2>Configuración</h2>
-      <button class="ico-btn" id="btnCerrarConfig" aria-label="Cerrar">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+
+      <h2>
+        Configuración
+      </h2>
+
+      <button
+        class="ico-btn"
+        id="btnCerrarConfig"
+        aria-label="Cerrar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
       </button>
+
     </header>
-    <div class="modal-cuerpo" id="cfgCuerpo"></div>
+
+
+    <div
+      class="modal-cuerpo"
+      id="cfgCuerpo"
+    ></div>
+
   </div>
+
 </div>
+
 
 <!-- ============================ MODAL OPERADOR ============================ -->
-<div class="modal" id="modalOperador" role="dialog" aria-modal="true" aria-hidden="true">
+
+<div
+  class="modal"
+  id="modalOperador"
+  role="dialog"
+  aria-modal="true"
+  aria-hidden="true"
+>
+
   <div class="modal-caja">
+
     <header class="modal-head">
-      <h2 id="opTitulo">¿Quién está operando esta computadora?</h2>
-      <button class="ico-btn" id="btnCerrarOperador" aria-label="Cerrar">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6 6 18M6 6l12 12"/></svg>
+
+      <h2 id="opTitulo">
+        ¿Quién está operando esta computadora?
+      </h2>
+
+      <button
+        class="ico-btn"
+        id="btnCerrarOperador"
+        aria-label="Cerrar"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          width="18"
+          height="18"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+        >
+          <path d="M18 6 6 18M6 6l12 12"/>
+        </svg>
       </button>
+
     </header>
+
+
     <div class="modal-cuerpo">
-      <p class="nota" id="opNota">Se usa para dejar registrado quién hizo cada cambio (asignar un paciente, registrar
-        un vaciado, etc.). Es solo para esta computadora — se puede cambiar en cualquier momento desde el ícono de
-        arriba o desde Configuración, por ejemplo al pasar el turno.</p>
+
+      <p
+        class="nota"
+        id="opNota"
+      >
+        Se usa para dejar registrado quién hizo cada cambio
+        (asignar un paciente, registrar un vaciado, etc.).
+        Es solo para esta computadora — se puede cambiar en
+        cualquier momento desde el ícono de arriba o desde
+        Configuración, por ejemplo al pasar el turno.
+      </p>
+
+
       <div class="fila">
-        <div class="campo"><label>Nombre y apellido</label><input type="text" id="opNombre" placeholder="Ej: Sevinsky, Lara"></div>
-        <div class="campo"><label>Rol</label><select id="opRol">
-          <option value="Enfermero/a">Enfermero/a</option>
-          <option value="Médico/a">Médico/a</option>
-          <option value="Otro">Otro</option>
-        </select></div>
+
+        <div class="campo">
+
+          <label>
+            Nombre y apellido
+          </label>
+
+          <input
+            type="text"
+            id="opNombre"
+            placeholder="Ej: Sevinsky, Lara"
+          >
+
+        </div>
+
+
+        <div class="campo">
+
+          <label>
+            Rol
+          </label>
+
+          <select id="opRol">
+
+            <option value="Enfermero/a">
+              Enfermero/a
+            </option>
+
+            <option value="Médico/a">
+              Médico/a
+            </option>
+
+            <option value="Otro">
+              Otro
+            </option>
+
+          </select>
+
+        </div>
+
       </div>
+
+
       <div class="acciones">
-        <button class="btn secundario chico oculto" id="btnInvitadoOperador">Continuar como invitado</button>
-        <button class="btn chico" id="btnGuardarOperador">Guardar</button>
+
+        <button
+          class="btn secundario chico oculto"
+          id="btnInvitadoOperador"
+        >
+          Continuar como invitado
+        </button>
+
+        <button
+          class="btn chico"
+          id="btnGuardarOperador"
+        >
+          Guardar
+        </button>
+
       </div>
+
     </div>
+
   </div>
+
 </div>
 
-<div class="toasts" id="toasts"></div>
+
+<!-- ============================== TOASTS ============================== -->
+
+<div
+  class="toasts"
+  id="toasts"
+></div>
+
+
+<!-- ============================ FIREBASE ============================= -->
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>  
+<script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-auth-compat.js"></script>
+
+
+<!-- ============================= SÍMODI ============================== -->
+
 <script src="js/config.js"></script>
 <script src="js/util.js"></script>
 <script src="js/operador.js"></script>
@@ -323,5 +982,6 @@
 <script src="js/ui.js"></script>
 <script src="js/app.js"></script>
 <script src="js/auth.js"></script>
+
 </body>
 </html>
