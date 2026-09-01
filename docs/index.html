@@ -154,6 +154,8 @@
           <option value="alerta">Con alerta</option>
           <option value="oliguria">Oliguria / anuria</option>
           <option value="sinsenal">Sin señal</option>
+          <option value="conpaciente">Con paciente</option>
+          <option value="condispositivo">Con dispositivo</option>
           <option value="libres">Libres</option>
         </select>
         <select id="orden" title="Ordenar">
@@ -191,6 +193,11 @@
         <div>
           <h2 id="detNombre">—</h2>
           <p id="detMeta">—</p>
+          <div class="detalle-inventario">
+            <label for="detSerieInventario">N.º de inventario de la cama</label>
+            <input type="text" id="detSerieInventario" placeholder="Ej: INV-00231">
+            <button class="btn secundario chico" id="btnGuardarInventario">Guardar</button>
+          </div>
         </div>
       </div>
       <div class="detalle-acciones">
@@ -213,30 +220,33 @@
     </nav>
 
     <div class="tab-panel activo" data-panel="tendencias">
-      <div class="rango-tiempo" id="rangoTiempo">
-        <button class="rango activo" data-horas="6">6 h</button>
-        <button class="rango" data-horas="12">12 h</button>
-        <button class="rango" data-horas="24">24 h</button>
-      </div>
-      <div class="grafico-bloque">
-        <div class="grafico-titulo">
-          <h4>Diuresis horaria</h4>
-          <span class="leyenda"><i class="ref"></i>umbral de oliguria (0,5 mL/kg/h)&nbsp;&nbsp;<i class="ref amber"></i>umbral de poliuria (3 mL/kg/h)</span>
-        </div>
-        <div class="lienzo-wrap"><canvas id="gDiuresis" height="170"></canvas></div>
-      </div>
-      <div class="grafico-bloque">
-        <div class="grafico-titulo"><h4>Volumen acumulado</h4><span class="leyenda" id="legVolumen"></span></div>
-        <div class="lienzo-wrap"><canvas id="gVolumen" height="150"></canvas></div>
-      </div>
-      <div class="doble">
-        <div class="grafico-bloque">
-          <div class="grafico-titulo"><h4>Temperatura de la orina</h4><span class="leyenda"><i class="ref amber"></i>febril ≥ 38 °C</span></div>
-          <div class="lienzo-wrap"><canvas id="gTemp" height="140"></canvas></div>
+      <div class="vacio" id="tendenciasVacio" hidden></div>
+      <div id="tendenciasContenido">
+        <div class="rango-tiempo" id="rangoTiempo">
+          <button class="rango activo" data-horas="6">6 h</button>
+          <button class="rango" data-horas="12">12 h</button>
+          <button class="rango" data-horas="24">24 h</button>
         </div>
         <div class="grafico-bloque">
-          <div class="grafico-titulo"><h4>Color en el tiempo</h4><span class="leyenda" id="legColor"></span></div>
-          <div class="lienzo-wrap"><canvas id="gColor" height="140"></canvas></div>
+          <div class="grafico-titulo">
+            <h4>Diuresis horaria</h4>
+            <span class="leyenda"><i class="ref"></i>umbral de oliguria (0,5 mL/kg/h)&nbsp;&nbsp;<i class="ref amber"></i>umbral de poliuria (3 mL/kg/h)</span>
+          </div>
+          <div class="lienzo-wrap"><canvas id="gDiuresis" height="170"></canvas></div>
+        </div>
+        <div class="grafico-bloque">
+          <div class="grafico-titulo"><h4>Volumen acumulado</h4><span class="leyenda" id="legVolumen"></span></div>
+          <div class="lienzo-wrap"><canvas id="gVolumen" height="150"></canvas></div>
+        </div>
+        <div class="doble">
+          <div class="grafico-bloque">
+            <div class="grafico-titulo"><h4>Temperatura de la orina</h4><span class="leyenda"><i class="ref amber"></i>febril ≥ 38 °C</span></div>
+            <div class="lienzo-wrap"><canvas id="gTemp" height="140"></canvas></div>
+          </div>
+          <div class="grafico-bloque">
+            <div class="grafico-titulo"><h4>Color en el tiempo</h4><span class="leyenda" id="legColor"></span></div>
+            <div class="lienzo-wrap"><canvas id="gColor" height="140"></canvas></div>
+          </div>
         </div>
       </div>
     </div>

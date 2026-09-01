@@ -151,6 +151,10 @@ var Modelo = (function () {
     return E.camas.filter(function (c) { return !c.pacienteId && !c.dispositivoId; });
   }
 
+  function eliminarCama(id) {
+    E.camas = E.camas.filter(function (c) { return c.id !== id; });
+  }
+
   function asignar(camaId, pacienteId, dispositivoId, operador) {
     var cama = buscarCama(camaId);
     if (!cama) return;
@@ -310,6 +314,7 @@ var Modelo = (function () {
     if (data.etiqueta) cama.etiqueta = data.etiqueta;
     cama.pacienteId = data.pacienteId || null;
     cama.dispositivoId = data.dispositivoId || null;
+    cama.serieInventario = data.serieInventario || null;
   }
 
   function aplicarEventoRemoto(ev) {
@@ -513,6 +518,7 @@ var Modelo = (function () {
     camaDeDispositivo: camaDeDispositivo,
     dispositivosLibres: dispositivosLibres,
     camasLibres: camasLibres,
+    eliminarCama: eliminarCama,
     asignar: asignar,
     trasladarPaciente: trasladarPaciente,
     altaPaciente: altaPaciente,

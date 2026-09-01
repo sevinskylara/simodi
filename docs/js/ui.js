@@ -61,7 +61,12 @@ var UI = (function () {
 
   function claseEstado(cama, m) {
     if (!cama.pacienteId && !cama.dispositivoId) return 'libre';
-    if (!m || m.vacio) return m && m.paciente ? 'sindispositivo' : 'sinsenal';
+    // Sin datos de dispositivo en este equipo: puede ser que nunca se haya
+    // vinculado uno, o que el dispositivoId venga sincronizado desde otra
+    // computadora (dispositivos/muestras son locales a cada navegador, no
+    // se sincronizan). En ambos casos no hay nada de "m.dispositivo" que
+    // mostrar, con o sin paciente asignado.
+    if (!m || m.vacio) return 'sindispositivo';
     if (m.sinSenalSeg > CFG.umbrales.segundosSinDatos) return 'sinsenal';
     var nivel = Alertas.nivelCama(cama.id);
     return nivel === 'sinsenal' ? 'ok' : nivel;
@@ -78,6 +83,12 @@ var UI = (function () {
 
   function pasaFiltro(cama, m, estadoClase) {
     if (filtroEstado === 'todas') return true;
+    if (filtroEstado === 'conpaciente') return !!(m && m.paciente);
+    // A diferencia del paciente (que sí se sincroniza por completo con la
+    // nube), el dispositivo es local a cada navegador: cama.dispositivoId
+    // puede estar bien asignado y no resolver a m.dispositivo en este
+    // equipo. El filtro es sobre la asignación, no sobre si hay datos acá.
+    if (filtroEstado === 'condispositivo') return !!cama.dispositivoId;
     if (filtroEstado === 'libres') return estadoClase === 'libre';
     if (filtroEstado === 'sinsenal') return estadoClase === 'sinsenal';
     if (filtroEstado === 'alerta') return ['critico', 'grave', 'aviso'].indexOf(estadoClase) !== -1;
@@ -85,7 +96,7 @@ var UI = (function () {
     return true;
   }
 
-  var PESO_ORDEN = { critico: 0, grave: 1, aviso: 2, sinsenal: 3, ok: 4, libre: 5 };
+  var PESO_ORDEN = { critico: 0, grave: 1, aviso: 2, sinsenal: 3, sindispositivo: 4, ok: 5, libre: 6 };
 
   function pintarMural() {
     var camas = Modelo.camasVisibles();
@@ -113,9 +124,16 @@ var UI = (function () {
     mural.innerHTML = '';
     if (!filas.length) {
       mural.innerHTML = '<div class="vacio" style="width:100%">Ninguna cama coincide con el filtro actual.</div>';
-      return;
+    } else {
+      filas.forEach(function (f) { mural.appendChild(tarjetaCama(f.cama, f.m, f.estado)); });
     }
-    filas.forEach(function (f) { mural.appendChild(tarjetaCama(f.cama, f.m, f.estado)); });
+    // El panel de alertas y el de eventos se alinean al mural en cada
+    // repintado, no sólo en pintarTodo(): si sólo se repinta el mural
+    // (buscar/filtrar/ordenar) su cantidad de filas puede cambiar sin que
+    // cambie la cantidad de alertas, y si el alto quedara desactualizado
+    // parecería (engañosamente) que la lista de alertas está filtrada
+    // junto con las camas.
+    igualarAlturasLateral();
   }
 
   function tarjetaCama(cama, m, estado) {
@@ -130,29 +148,41 @@ var UI = (function () {
         '<div class="cama-libre-cuerpo">' +
           iconoCamaLibre() +
           '<div>Cama libre</div>' +
-          '<button class="btn secundario chico" data-accion="asignar">Asignar paciente</button>' +
+          '<div class="cama-libre-acciones">' +
+            '<button class="btn secundario chico" data-accion="asignar">Asignar paciente</button>' +
+            '<button class="btn peligro chico" data-accion="eliminar">Eliminar cama</button>' +
+          '</div>' +
         '</div>';
       div.querySelector('[data-accion="asignar"]').onclick = function (ev) {
         ev.stopPropagation(); abrirAsignar(cama.id);
+      };
+      div.querySelector('[data-accion="eliminar"]').onclick = function (ev) {
+        ev.stopPropagation(); Acciones.eliminarCama(cama.id);
       };
       return div;
     }
 
     if (estado === 'sindispositivo') {
-      div.innerHTML =
-        '<div class="cama-head">' +
-          '<div class="cama-ident">' +
+      var encabezado = m.paciente
+        ? '<div class="cama-ident">' +
             '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>' +
             '<div>' +
               '<div class="cama-nombre">' + U.esc(m.paciente.nombre) + '</div>' +
               '<div class="cama-meta">' + U.esc(m.paciente.hc) + ' · ' + (m.paciente.edad ? m.paciente.edad + 'a · ' : '') + m.paciente.pesoKg + ' kg</div>' +
             '</div>' +
-          '</div>' +
-        '</div>' +
+          '</div>'
+        : '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>';
+      var mensaje = cama.dispositivoId
+        ? 'Dispositivo vinculado sin datos disponibles en este equipo'
+        : (m.paciente ? 'Paciente admitido, sin dispositivo vinculado' : 'Cama sin paciente ni dispositivo vinculado');
+      var textoBoton = cama.dispositivoId ? 'Reasignar' : (m.paciente ? 'Vincular dispositivo' : 'Asignar paciente');
+
+      div.innerHTML =
+        '<div class="cama-head">' + encabezado + '</div>' +
         '<div class="cama-libre-cuerpo">' +
           iconoCamaLibre() +
-          '<div>Paciente admitido, sin dispositivo vinculado</div>' +
-          '<button class="btn secundario chico" data-accion="asignar">Vincular dispositivo</button>' +
+          '<div>' + mensaje + '</div>' +
+          '<button class="btn secundario chico" data-accion="asignar">' + textoBoton + '</button>' +
         '</div>';
       div.querySelector('[data-accion="asignar"]').onclick = function (ev) {
         ev.stopPropagation(); abrirAsignar(cama.id);
@@ -178,7 +208,6 @@ var UI = (function () {
         '</div>' +
         '<div class="cama-badges">' +
           '<span class="badge ' + (d.tipo === 'sim' ? 'sim' : 'real') + '">' + (d.tipo === 'sim' ? 'PILOTO' : 'REAL') + '</span>' +
-          (m.muestrasBuffer ? '<span class="badge buffer" title="Datos reconstruidos del búfer">BÚFER</span>' : '') +
           '<span class="bateria ' + claseBat + '" title="Batería ' + Math.round(bat) + ' %">' +
             '<span class="bat-cuerpo"><span class="bat-relleno" style="width:' + U.clamp(bat, 0, 100) + '%"></span></span>' +
             Math.round(bat) + '%' +
@@ -204,6 +233,7 @@ var UI = (function () {
           '<div class="barra-pista"><div class="barra-relleno' + (m.llenado >= CFG.umbrales.bolsaCritica ? ' critico' : (m.llenado >= CFG.umbrales.bolsaAviso ? ' aviso' : '')) + '" style="width:' + Math.round(m.llenado * 100) + '%"></div></div>' +
         '</div>' +
         (alertasCama.length ? '<div class="cama-alertas">' + alertasCama.map(pastillaAlerta).join('') + '</div>' : '') +
+        (m.muestrasBuffer ? '<div class="cama-buffer-nota" title="Datos reconstruidos del búfer del equipo al reconectar"><span class="badge buffer">BÚFER</span> Datos reconstruidos al reconectar</div>' : '') +
       '</div>';
 
     var cv = div.querySelector('[data-spark]');
@@ -403,10 +433,9 @@ var UI = (function () {
   function pintarTodo() {
     pintarBarraEstado();
     pintarKpis();
-    pintarMural();
+    pintarMural();   // ya iguala el alto del panel lateral al final
     pintarAlertas();
     pintarEventos();
-    igualarAlturasLateral();
     if (camaAbierta) actualizarDetalleAbierto();
   }
 
@@ -441,8 +470,15 @@ var UI = (function () {
 
     var panelAlertas = U.$('.panel-alertas');
     var alturaAlertas = null;
-    if (filas.length === 1) alturaAlertas = filas[0].height;
-    else if (filas.length >= 2) alturaAlertas = filas[0].height + gap + filas[1].height;
+    if (filas.length === 1) {
+      // No hay una 2.ª fila real con la que alinearse (pocas camas, o un
+      // filtro/zoom que hace entrar todas en una sola fila): en vez de
+      // colapsar al alto de esa única fila (muy bajo para una lista de
+      // alertas), se usa el doble como referencia de "2 filas esperadas".
+      alturaAlertas = filas[0].height * 2 + gap;
+    } else if (filas.length >= 2) {
+      alturaAlertas = filas[0].height + gap + filas[1].height;
+    }
     panelAlertas.style.height = alturaAlertas !== null ? alturaAlertas + 'px' : '';
 
     var panelEventos = U.$('.panel-eventos');
@@ -492,19 +528,31 @@ var UI = (function () {
 
     U.$('#btnVaciarBolsa').style.display = m.dispositivo ? '' : 'none';
     U.$('#btnExportar').style.display = m.dispositivo ? '' : 'none';
+    U.$('#btnTrasladar').style.display = m.paciente ? '' : 'none';
+
+    // No pisar el campo si el usuario lo está editando ahora mismo: la
+    // vista se re-renderiza sola cada pocos segundos con datos nuevos.
+    if (document.activeElement !== U.$('#detSerieInventario')) {
+      U.$('#detSerieInventario').value = cama.serieInventario || '';
+    }
 
     renderResumen(m);
     if (m.dispositivo) {
+      U.$('#tendenciasVacio').hidden = true;
+      U.$('#tendenciasContenido').hidden = false;
       renderTendencias(m);
       renderDispositivo(m);
-      renderEventosCama(cama);
     } else {
-      ['gDiuresis', 'gVolumen', 'gTemp', 'gColor'].forEach(function (id) {
-        var c = U.$('#' + id); var ctx = c.getContext('2d'); ctx.clearRect(0, 0, c.width, c.height);
-      });
+      U.$('#tendenciasVacio').hidden = false;
+      U.$('#tendenciasContenido').hidden = true;
+      U.$('#tendenciasVacio').textContent = cama.dispositivoId
+        ? 'El dispositivo vinculado no tiene datos disponibles en este equipo.'
+        : (m.paciente ? 'Vinculá un dispositivo a esta cama para ver sus tendencias.' : 'Asigná un paciente y vinculá un dispositivo para ver tendencias.');
       U.$('#detDispositivo').innerHTML = '<p class="nota">Esta cama todavía no tiene un dispositivo vinculado.</p>';
-      U.$('#detEventos').innerHTML = '<p class="nota">Sin eventos.</p>';
     }
+    // Los eventos son de la cama, no del dispositivo: se muestran siempre,
+    // tenga o no dispositivo vinculado en este momento.
+    renderEventosCama(cama);
   }
 
   function resVal(rot, val, sub, clase) {
@@ -627,9 +675,11 @@ var UI = (function () {
   }
 
   function renderEventosCama(cama) {
-    var d = Modelo.estado.dispositivos[cama.dispositivoId];
-    var ev = (d ? d.eventos : []).slice(-60).reverse();
-    if (!ev.length) { U.$('#detEventos').innerHTML = '<p class="nota">Sin eventos registrados.</p>'; return; }
+    // Se filtra el registro global por camaId (no por dispositivo: un
+    // dispositivo puede irse con el paciente a otra cama, o cambiar, y la
+    // cama debe conservar su propia historia igual).
+    var ev = Modelo.estado.eventos.filter(function (e) { return e.camaId === cama.id; }).slice(-60).reverse();
+    if (!ev.length) { U.$('#detEventos').innerHTML = '<p class="nota">Sin eventos registrados para esta cama.</p>'; return; }
     var filas = ev.map(function (e) {
       return '<tr><td style="font-family:var(--mono);white-space:nowrap">' + U.fechaHora(e.t) + '</td><td>' + U.esc(e.tipo) + '</td><td>' + U.esc(e.operador || 'Sistema') + '</td><td>' + U.esc(e.texto) + '</td></tr>';
     }).join('');
@@ -964,6 +1014,13 @@ var UI = (function () {
     });
     U.$('#btnAsignarDesdeDetalle').onclick = function () { if (camaAbierta) abrirAsignar(camaAbierta); };
     U.$('#btnTrasladar').onclick = function () { if (camaAbierta) abrirTrasladar(camaAbierta); };
+    U.$('#btnGuardarInventario').onclick = function () {
+      if (!camaAbierta) return;
+      Acciones.guardarSerieInventario(camaAbierta, U.$('#detSerieInventario').value.trim());
+    };
+    U.$('#detSerieInventario').addEventListener('keydown', function (ev) {
+      if (ev.key === 'Enter') U.$('#btnGuardarInventario').click();
+    });
     U.$('#btnCerrarTrasladar').onclick = cerrarTrasladar;
     U.$('#modalTrasladar').addEventListener('click', function (ev) { if (ev.target.id === 'modalTrasladar') cerrarTrasladar(); });
     U.$('#btnVaciarBolsa').onclick = function () { if (camaAbierta) Acciones.vaciarBolsa(camaAbierta); };
@@ -997,6 +1054,15 @@ var UI = (function () {
       if (nuevas && nuevas.length) vibrarPanelAlertas();
     });
     Conexion.alCambiar(function () { pintarBarraEstado(); });
+
+    // Cambiar el zoom o el ancho de ventana puede cambiar cuántas camas
+    // entran por fila sin que se repinte el mural por ningún otro motivo:
+    // hay que volver a medir las filas y realinear el panel lateral.
+    var resizeTimer = null;
+    window.addEventListener('resize', function () {
+      clearTimeout(resizeTimer);
+      resizeTimer = setTimeout(igualarAlturasLateral, 120);
+    });
   }
 
   return {

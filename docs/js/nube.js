@@ -76,12 +76,13 @@ var Nube = (function () {
     }, function (err) { avisarEstado('error', err.message); });
 
     col('camas').onSnapshot(function (snap) {
+      var eliminadas = [];
       snap.docChanges().forEach(function (c) {
-        if (c.type === 'removed') { delete cacheCamas[c.doc.id]; return; }
+        if (c.type === 'removed') { delete cacheCamas[c.doc.id]; eliminadas.push(c.doc.id); return; }
         var d = c.doc.data(); d.id = c.doc.id; cacheCamas[d.id] = d;
       });
       aplicandoRemoto = true;
-      handlers.camas(cacheCamas);
+      handlers.camas(cacheCamas, eliminadas);
       aplicandoRemoto = false;
     }, function (err) { avisarEstado('error', err.message); });
 
@@ -113,8 +114,14 @@ var Nube = (function () {
   function guardarCama(cama) {
     if (!db || aplicandoRemoto) return;
     col('camas').doc(cama.id).set({
-      etiqueta: cama.etiqueta, pacienteId: cama.pacienteId, dispositivoId: cama.dispositivoId
+      etiqueta: cama.etiqueta, pacienteId: cama.pacienteId, dispositivoId: cama.dispositivoId,
+      serieInventario: cama.serieInventario || null
     }, { merge: true }).catch(function (e) { console.warn('Nube: cama no sincronizada', e); });
+  }
+
+  function eliminarCama(id) {
+    if (!db || aplicandoRemoto) return;
+    col('camas').doc(id).delete().catch(function (e) { console.warn('Nube: cama no eliminada', e); });
   }
 
   function guardarDispositivoMeta(d) {
@@ -137,7 +144,7 @@ var Nube = (function () {
   return {
     configurado: configurado, iniciar: iniciar, activo: function () { return activo; },
     aplicandoRemoto: estaAplicandoRemoto, alCambiarEstado: alCambiarEstado,
-    guardarPaciente: guardarPaciente, guardarCama: guardarCama,
+    guardarPaciente: guardarPaciente, guardarCama: guardarCama, eliminarCama: eliminarCama,
     guardarDispositivoMeta: guardarDispositivoMeta, agregarEvento: agregarEvento
   };
 })();

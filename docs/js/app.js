@@ -20,6 +20,7 @@ var Acciones = (function () {
   }
 
   function agregarCama() {
+    if (!confirm('¿Agregar una nueva cama a la sala?')) return;
     var n = Modelo.estado.camas.length + 1;
     var letra = 'A';
     var num = n;
@@ -29,7 +30,8 @@ var Acciones = (function () {
       id: id,
       etiqueta: 'UTI-' + String(num).padStart(2, '0'),
       pacienteId: null,
-      dispositivoId: null
+      dispositivoId: null,
+      serieInventario: null
     };
 
     Modelo.estado.camas.push(cama);
@@ -42,6 +44,46 @@ var Acciones = (function () {
     guardar();
     UI.pintarTodo();
     UI.toast('Cama agregada');
+    // Se abre de una la ficha de la cama: falta vincular el n.º de
+    // inventario y, si corresponde, asignar paciente y dispositivo.
+    UI.abrirDetalle(id);
+  }
+
+  function guardarSerieInventario(camaId, serie) {
+    var cama = Modelo.buscarCama(camaId);
+    if (!cama) return;
+    cama.serieInventario = serie || null;
+    Modelo.registrarEvento(camaId, 'sistema',
+      serie ? ('N.º de inventario actualizado: ' + serie) : 'N.º de inventario eliminado',
+      null, Operador.actual());
+
+    if (typeof Nube !== 'undefined' && Nube.activo()) {
+      Nube.guardarCama(cama);
+    }
+
+    guardar();
+    UI.toast('N.º de inventario guardado');
+  }
+
+  function eliminarCama(id) {
+    var cama = Modelo.buscarCama(id);
+    if (!cama) return;
+    if (cama.pacienteId || cama.dispositivoId) {
+      UI.toast('Sólo se pueden eliminar camas libres');
+      return;
+    }
+    if (!confirm('¿Eliminar la cama ' + cama.etiqueta + '? Esta acción no se puede deshacer.')) return;
+
+    Modelo.eliminarCama(id);
+    Modelo.registrarEvento(null, 'sistema', 'Cama ' + cama.etiqueta + ' eliminada de la sala', null, Operador.actual());
+
+    if (typeof Nube !== 'undefined' && Nube.activo()) {
+      Nube.eliminarCama(id);
+    }
+
+    guardar();
+    UI.pintarTodo();
+    UI.toast('Cama eliminada');
   }
 
   function cambiarEscenario(dispId, clave, reiniciar) {
@@ -258,6 +300,8 @@ var Acciones = (function () {
     guardar: guardar,
     cambiarModo: cambiarModo,
     agregarCama: agregarCama,
+    eliminarCama: eliminarCama,
+    guardarSerieInventario: guardarSerieInventario,
     cambiarEscenario: cambiarEscenario,
     vaciarBolsa: vaciarBolsa,
     trasladarPaciente: trasladarPaciente,
@@ -342,7 +386,11 @@ function iniciarSimodi() {
       },
 
 
-      camas: function (mapa) {
+      camas: function (mapa, eliminadas) {
+
+        (eliminadas || []).forEach(function (id) {
+          Modelo.eliminarCama(id);
+        });
 
         Object.keys(mapa).forEach(function (id) {
           Modelo.aplicarCamaRemota(mapa[id]);
