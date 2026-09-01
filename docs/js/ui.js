@@ -112,7 +112,7 @@ var UI = (function () {
     var mural = U.$('#mural');
     mural.innerHTML = '';
     if (!filas.length) {
-      mural.innerHTML = '<div class="vacio" style="grid-column:1/-1">Ninguna cama coincide con el filtro actual.</div>';
+      mural.innerHTML = '<div class="vacio" style="width:100%">Ninguna cama coincide con el filtro actual.</div>';
       return;
     }
     filas.forEach(function (f) { mural.appendChild(tarjetaCama(f.cama, f.m, f.estado)); });
@@ -406,7 +406,55 @@ var UI = (function () {
     pintarMural();
     pintarAlertas();
     pintarEventos();
+    igualarAlturasLateral();
     if (camaAbierta) actualizarDetalleAbierto();
+  }
+
+  var ALTURA_EVENTOS_SIN_FILAS = 300;   // fallback: sin ninguna cama visible
+
+  /* Agrupa las tarjetas del mural por fila visual (mismo offsetTop, ya que
+     .mural usa flex-wrap) y devuelve [{top, height}, ...] ordenadas. */
+  function filasDelMural() {
+    var mural = U.$('#mural');
+    var hijos = U.$$('.cama', mural);
+    var filas = [];
+    hijos.forEach(function (el) {
+      var top = el.offsetTop;
+      var fila = filas.filter(function (f) { return Math.abs(f.top - top) < 1; })[0];
+      if (!fila) { fila = { top: top, height: 0 }; filas.push(fila); }
+      fila.height = Math.max(fila.height, el.offsetHeight);
+    });
+    filas.sort(function (a, b) { return a.top - b.top; });
+    return filas;
+  }
+
+  /* Iguala el alto de "Alertas activas" al de las dos primeras filas de
+     camas (borde superior con borde superior, borde inferior de la 2.ª
+     fila con borde inferior del panel), y el de "Registro de eventos" al
+     de la 3.ª fila. Sin 3.ª fila, Eventos toma como referencia la fila más
+     alta del mural (una tarjeta con alerta es más alta que una sin
+     alertas); sin ninguna fila, un tamaño fijo razonable. */
+  function igualarAlturasLateral() {
+    var filas = filasDelMural();
+    var mural = U.$('#mural');
+    var gap = parseFloat(getComputedStyle(mural).rowGap) || 13;
+
+    var panelAlertas = U.$('.panel-alertas');
+    var alturaAlertas = null;
+    if (filas.length === 1) alturaAlertas = filas[0].height;
+    else if (filas.length >= 2) alturaAlertas = filas[0].height + gap + filas[1].height;
+    panelAlertas.style.height = alturaAlertas !== null ? alturaAlertas + 'px' : '';
+
+    var panelEventos = U.$('.panel-eventos');
+    var alturaEventos;
+    if (filas.length >= 3) {
+      alturaEventos = filas[2].height;
+    } else if (filas.length > 0) {
+      alturaEventos = Math.max.apply(null, filas.map(function (f) { return f.height; }));
+    } else {
+      alturaEventos = ALTURA_EVENTOS_SIN_FILAS;
+    }
+    panelEventos.style.height = alturaEventos + 'px';
   }
 
   /* ============================ MODAL DETALLE ============================ */
