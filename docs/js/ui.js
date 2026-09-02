@@ -18,6 +18,11 @@ var UI = (function () {
   var orden = 'cama';
   var eventosExpandido = false;
 
+  // Rayo que se superpone al ícono de batería cuando el dispositivo está
+  // conectado (mix-blend-mode:difference en CSS lo hace legible tanto
+  // sobre el relleno como sobre el fondo vacío del ícono).
+  var SVG_RAYO = '<svg viewBox="0 0 24 24" fill="#fff"><path d="M13 2 4 14h6l-2 8 9-12h-6l2-8Z"/></svg>';
+
   /* ============================== KPIs ================================ */
 
   function pintarKpis() {
@@ -198,7 +203,6 @@ var UI = (function () {
             '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>' +
             '<div>' +
               '<div class="cama-nombre">' + U.esc(m.paciente.nombre) + '</div>' +
-              '<div class="cama-meta">' + U.esc(m.paciente.hc) + ' · ' + (m.paciente.edad ? m.paciente.edad + 'a · ' : '') + m.paciente.pesoKg + ' kg</div>' +
             '</div>' +
           '</div>'
         : '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>';
@@ -223,6 +227,7 @@ var UI = (function () {
     var p = m.paciente, d = m.dispositivo;
     var bat = d.bat;
     var claseBat = bat <= CFG.umbrales.bateriaCritica ? 'critica' : (bat <= CFG.umbrales.bateriaBaja ? 'baja' : '');
+    var conectado = d.estado === 'en-linea';
     var alertasCama = Alertas.porCama(cama.id).filter(function (a) { return !a.reconocida; }).slice(0, 3);
 
     var sub24 = Modelo.bucketsHorarios(d, rangoHoras).map(function (b) { return b.mlH; });
@@ -233,13 +238,16 @@ var UI = (function () {
           '<span class="tag-cama">' + U.esc(cama.etiqueta) + '</span>' +
           '<div>' +
             '<div class="cama-nombre">' + U.esc(p ? p.nombre : 'Sin paciente') + '</div>' +
-            '<div class="cama-meta">' + (p ? U.esc(p.hc) + ' · ' + (p.edad ? p.edad + 'a · ' : '') + p.pesoKg + ' kg' : d.serie) + '</div>' +
+            (p ? '' : '<div class="cama-meta">' + U.esc(d.serie) + '</div>') +
           '</div>' +
         '</div>' +
         '<div class="cama-badges">' +
           '<span class="badge ' + (d.tipo === 'sim' ? 'sim' : 'real') + '">' + (d.tipo === 'sim' ? 'PILOTO' : 'REAL') + '</span>' +
-          '<span class="bateria ' + claseBat + '" title="Batería ' + Math.round(bat) + ' %">' +
-            '<span class="bat-cuerpo"><span class="bat-relleno" style="width:' + U.clamp(bat, 0, 100) + '%"></span></span>' +
+          '<span class="bateria ' + claseBat + '" title="Batería ' + Math.round(bat) + ' %' + (conectado ? ' · dispositivo conectado' : ' · dispositivo sin señal') + '">' +
+            '<span class="bat-cuerpo">' +
+              '<span class="bat-relleno" style="width:' + U.clamp(bat, 0, 100) + '%"></span>' +
+              (conectado ? '<span class="bat-rayo">' + SVG_RAYO + '</span>' : '') +
+            '</span>' +
             Math.round(bat) + '%' +
           '</span>' +
         '</div>' +
@@ -247,19 +255,17 @@ var UI = (function () {
       '<div class="cama-cuerpo">' +
         '<div class="dato-principal">' +
           '<div>' +
-            '<div class="diuresis-val"><span class="num">' + (m.mlH === null ? '—' : U.num(m.mlH, 0)) + '</span><span class="uni">mL/h</span></div>' +
-            '<div class="diuresis-norm">' + (m.mlKgH !== null ? U.num(m.mlKgH, 2) + ' mL/kg/h' : 'sin peso cargado') +
-              (m.umbralMlH !== null ? ' · umbral <b>' + U.num(m.umbralMlH, 0) + ' mL/h</b>' : '') + '</div>' +
+            '<div class="diuresis-val"><span class="num">' + (m.mlKgH === null ? '—' : U.num(m.mlKgH, 2)) + '</span><span class="uni">mL/kg/h</span></div>' +
+            (m.mlKgH === null ? '<div class="diuresis-norm">sin peso cargado</div>' : '') +
           '</div>' +
           '<canvas class="spark" data-spark></canvas>' +
         '</div>' +
         '<div class="mini-datos">' +
-          '<div class="mini' + (claseTempMini(m.tempC)) + '"><div class="mini-rot">Temp.</div><div class="mini-val">' + (m.tempC === null ? '—' : U.num(m.tempC, 1)) + '<small>°C</small></div></div>' +
-          '<div class="mini' + (m.color && m.color.anomalo ? ' alerta' : '') + '"><div class="mini-rot">Color</div><div class="mini-val"><span class="muestra-color" style="background:' + (m.color ? m.color.hex : '#333') + '"></span><span class="mini-val-txt">' + (m.color ? U.esc(m.color.nombre) : '—') + '</span></div></div>' +
-          '<div class="mini"><div class="mini-rot">Acumulado</div><div class="mini-val">' + U.num(m.volTotalMl, 0) + '<small>mL</small></div></div>' +
+          '<div class="mini' + (claseTempMini(m.tempC)) + '"><div class="mini-val">' + (m.tempC === null ? '—' : U.num(m.tempC, 1)) + '<small>°C</small></div></div>' +
+          '<div class="mini' + (m.color && m.color.anomalo ? ' alerta' : '') + '"><div class="mini-val"><span class="mini-val-txt">' + (m.color ? U.esc(m.color.nombre) : '—') + '</span><span class="muestra-color" style="background:' + (m.color ? m.color.hex : '#333') + '"></span></div></div>' +
         '</div>' +
         '<div class="barra-bolsa">' +
-          '<div class="rot"><span>Bolsa colectora</span><span>' + U.num(m.volBolsaMl, 0) + ' / ' + CFG.medicion.capacidadBolsaML + ' mL</span></div>' +
+          '<div class="rot"><span>Bolsa</span><span>' + U.num(m.volBolsaMl, 0) + ' / ' + CFG.medicion.capacidadBolsaML + ' mL</span></div>' +
           '<div class="barra-pista"><div class="barra-relleno' + (m.llenado >= CFG.umbrales.bolsaCritica ? ' critico' : (m.llenado >= CFG.umbrales.bolsaAviso ? ' aviso' : '')) + '" style="width:' + Math.round(m.llenado * 100) + '%"></div></div>' +
         '</div>' +
         (alertasCama.length ? '<div class="cama-alertas">' + alertasCama.map(pastillaAlerta).join('') + '</div>' : '') +
@@ -571,11 +577,16 @@ var UI = (function () {
     }
 
     renderResumen(m);
+    var puntoTab = U.$('#tabPuntoEnlace');
     if (m.dispositivo) {
       U.$('#tendenciasVacio').hidden = true;
       U.$('#tendenciasContenido').hidden = false;
       renderTendencias(m);
       renderDispositivo(m);
+      var conectado = m.dispositivo.estado === 'en-linea';
+      puntoTab.classList.remove('oculto');
+      puntoTab.classList.toggle('conectado', conectado);
+      puntoTab.title = conectado ? 'Dispositivo en línea' : 'Dispositivo sin señal';
     } else {
       U.$('#tendenciasVacio').hidden = false;
       U.$('#tendenciasContenido').hidden = true;
@@ -583,6 +594,7 @@ var UI = (function () {
         ? 'El dispositivo vinculado no tiene datos disponibles en este equipo.'
         : (m.paciente ? 'Vinculá un dispositivo a esta cama para ver sus tendencias.' : 'Asigná un paciente y vinculá un dispositivo para ver tendencias.');
       U.$('#detDispositivo').innerHTML = '<p class="nota">Esta cama todavía no tiene un dispositivo vinculado.</p>';
+      puntoTab.classList.add('oculto');
     }
     // Los eventos son de la cama, no del dispositivo: se muestran siempre,
     // tenga o no dispositivo vinculado en este momento.
@@ -599,11 +611,12 @@ var UI = (function () {
     var kdigoTxt = ['Sin criterio KDIGO', 'KDIGO 1', 'KDIGO 2', 'KDIGO 3'][m.kdigo];
     var kdigoClase = m.kdigo >= 2 ? 'critico' : (m.kdigo === 1 ? 'aviso' : 'ok');
     el.innerHTML =
-      resVal('Diuresis (1 h)', (m.mlH === null ? '—' : U.num(m.mlH, 0) + ' <small>mL/h</small>'), m.mlKgH !== null ? U.num(m.mlKgH, 2) + ' mL/kg/h' : '', claseTasa(m.mlKgH)) +
+      resVal('Diuresis (1 h)', (m.mlH === null ? '—' : U.num(m.mlH, 0) + ' <small>mL/h</small>'),
+        (m.mlKgH !== null ? U.num(m.mlKgH, 2) + ' mL/kg/h' : 'sin peso cargado') +
+        (m.umbralMlH !== null ? ' · umbral ' + U.num(m.umbralMlH, 0) + ' mL/h' : ''), claseTasa(m.mlKgH)) +
       resVal('Diuresis (6 h)', (m.mlH6 === null ? '—' : U.num(m.mlKgH6, 2) + ' <small>mL/kg/h</small>'), 'promedio de las últimas 6 h', claseTasa(m.mlKgH6)) +
       resVal('Temperatura', (m.tempC === null ? '—' : U.num(m.tempC, 1) + ' <small>°C</small>'), 'máx. 6 h: ' + (m.tempMax6h !== null ? U.num(m.tempMax6h, 1) + ' °C' : '—'), claseTemp(m.tempC)) +
       resVal('Color', m.color ? U.esc(m.color.nombre) : '—', m.color ? m.color.hidratacion : '', m.color ? m.color.estado : '') +
-      resVal('Volumen acumulado', U.num(m.volTotalMl, 0) + ' <small>mL</small>', 'desde el alta del dispositivo', '') +
       resVal('Estado renal', kdigoTxt, m.horasOliguria ? m.horasOliguria + ' h por debajo de 0,5 mL/kg/h' : 'diuresis dentro de objetivo', kdigoClase);
   }
   function claseTasa(v) {
@@ -631,10 +644,13 @@ var UI = (function () {
       pesoKg: p ? p.pesoKg : null, umbralMlH: m.umbralMlH, umbralPoliuriaMlH: m.umbralPoliuriaMlH
     });
 
-    Graf.serie(U.$('#gVolumen'), ms.map(function (x) { return { t: x.t, v: x.volTotalMl, buffer: x.origen === 'buffer' }; }), {
+    // Acumulado dentro de la ventana elegida (6/12/24 h), no desde el alta del
+    // dispositivo: se resta el volumen ya acumulado al empezar la ventana.
+    var baseVolVentana = Modelo.volumenEn(d.muestras, desde);
+    Graf.serie(U.$('#gVolumen'), ms.map(function (x) { return { t: x.t, v: x.volTotalMl - baseVolVentana, buffer: x.origen === 'buffer' }; }), {
       color: getCss('--teal'), area: true, desdeCero: true, unidad: ' mL'
     });
-    U.$('#legVolumen').textContent = U.num(m.volTotalMl, 0) + ' mL acumulados';
+    U.$('#legVolumen').textContent = U.num(m.volTotalMl - baseVolVentana, 0) + ' mL en las últimas ' + rangoHoras + ' h';
 
     Graf.serie(U.$('#gTemp'), ms.map(function (x) { return { t: x.t, v: x.tempC, buffer: x.origen === 'buffer' }; }), {
       color: getCss('--aviso'), unidad: ' °C',
@@ -662,9 +678,10 @@ var UI = (function () {
     var e = d.tipo === 'sim' ? null : Conexion.estado();
     var html = '<div class="fila">' +
       resVal('N.º de serie', '<span style="font-family:var(--mono)">' + U.esc(d.serie) + '</span>', d.tipo === 'sim' ? 'dispositivo piloto (simulado)' : 'dispositivo real', '') +
-      resVal('Estado del enlace', d.estado === 'en-linea' ? 'En línea' : 'Sin señal', U.desde(d.ultimoContacto || d.reloj), d.estado === 'en-linea' ? 'ok' : 'critico') +
-    '</div><div class="fila">' +
+      resVal('Estado del enlace', d.estado === 'en-linea' ? 'Transmitiendo' : 'Sin señal', U.desde(d.ultimoContacto || d.reloj), d.estado === 'en-linea' ? 'ok' : 'critico') +
+    '</div><div class="fila-3">' +
       resVal('Batería', Math.round(d.bat) + ' <small>%</small>', duracionBateria(d), d.bat <= CFG.umbrales.bateriaBaja ? 'critico' : 'ok') +
+      resVal('Fuente', d.fuente === 'red' ? 'Toma eléctrica' : 'Batería', d.fuente === 'red' ? 'enchufado' : '', '') +
       resVal('Señal (RSSI)', Math.round(d.rssi) + ' <small>dBm</small>', d.tipo === 'sim' ? 'simulado' : (e ? e.tipo : '—'), '') +
     '</div>';
 

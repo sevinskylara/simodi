@@ -115,6 +115,7 @@ var Modelo = (function () {
       inicioEscenario: Date.now(),
       estado: op.tipo === 'sim' ? 'en-linea' : 'sin-senal',
       bat: 100, rssi: -55,
+      fuente: 'bateria',                // 'bateria' | 'red' (toma eléctrica / enchufado)
       volTotalMl: 0,                    // acumulado monótono desde el alta
       tara: E.medicion.taraBolsaG,
       ultimoDato: null,
@@ -265,6 +266,7 @@ var Modelo = (function () {
     d.ultimoContacto = Date.now();   // reloj de pared: mide el silencio del enlace
     d.reloj = Math.max(d.reloj || 0, m.t);
     d.bat = m.bat; d.rssi = m.rssi;
+    if (lectura.fuente !== undefined) d.fuente = lectura.fuente;
     if (d.estado !== 'en-linea' && lectura.origen !== 'buffer') d.estado = 'en-linea';
 
     podar(d);

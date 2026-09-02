@@ -10,7 +10,9 @@
 
    Trama de una muestra:
      {"serie":"URO-0001","t":1727450000,"peso":412.5,"temp":36.8,
-      "rgb":[210,180,60],"bat":87,"rssi":-62}
+      "rgb":[210,180,60],"bat":87,"rssi":-62,"fuente":"bateria"}
+   "fuente" es opcional ("bateria" | "red", o el booleano "enchufado"): si el
+   firmware no lo manda, se conserva la última fuente conocida del equipo.
 
    Trama de recuperación tras un corte (el ESP32 guarda en su memoria y
    reenvía todo junto al reconectar):
@@ -70,6 +72,14 @@ var Conexion = (function () {
     var med = Modelo.estado.medicion;
     if (peso === null) peso = med.taraBolsaG + vol * med.densidadOrina;
 
+    // Fuente de alimentación: el firmware puede mandar "fuente":"red"/"bateria"
+    // o, más simple, un booleano "enchufado"/"plugged". Si no manda nada, se
+    // conserva la última fuente conocida del dispositivo (ver Modelo.ingresarMuestra).
+    var fuenteRaw = primero(obj, ['fuente', 'fuente_alim', 'power']);
+    var enchufado = primero(obj, ['enchufado', 'plugged', 'usb']);
+    var fuente = fuenteRaw !== null ? String(fuenteRaw)
+      : (enchufado !== null ? (enchufado ? 'red' : 'bateria') : undefined);
+
     return {
       serie: obj.serie || obj.id || obj.dev || st.serieVista || 'URO-REAL',
       t: t,
@@ -78,6 +88,7 @@ var Conexion = (function () {
       rgb: rgb.map(Number),
       bat: Number(primero(obj, ['bat', 'bateria', 'battery']) === null ? 100 : primero(obj, ['bat', 'bateria', 'battery'])),
       rssi: Number(primero(obj, ['rssi', 'senal']) === null ? -60 : primero(obj, ['rssi', 'senal'])),
+      fuente: fuente,
       origen: 'enlace'
     };
   }
