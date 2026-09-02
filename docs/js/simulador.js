@@ -138,14 +138,22 @@ var Simulador = (function () {
     }
     rgb = rgb.map(function (v) { return U.clamp(v + U.ruido(1.6), 0, 255); });
 
-    /* --- batería y señal --- */
-    d.bat = Math.max(0, (d.bat === undefined ? 100 : d.bat) - dtH * 1.1);
+    /* --- batería, fuente y señal --- */
+    // Fuera del laboratorio el equipo vive con la bolsa, lejos de un
+    // tomacorriente: casi siempre a batería, con alguna ventana enchufado
+    // (por ejemplo mientras se lo prepara) para poder ver el campo "Fuente"
+    // funcionando también en modo piloto.
+    if (d.fuente === undefined) d.fuente = 'bateria';
+    if (Math.random() < 0.0015) d.fuente = d.fuente === 'bateria' ? 'red' : 'bateria';
+    d.bat = d.fuente === 'red'
+      ? Math.min(100, (d.bat === undefined ? 100 : d.bat) + dtH * 4)
+      : Math.max(0, (d.bat === undefined ? 100 : d.bat) - dtH * 1.1);
     if (d.bat < 5) d.bat = 100;                       // se cambió la batería
     var rssi = -52 - Math.abs(U.ruido(7));
 
     var lectura = {
       t: t, pesoG: pesoG, tempC: tempC, rgb: rgb,
-      bat: d.bat, rssi: rssi, origen: 'enlace'
+      bat: d.bat, rssi: rssi, fuente: d.fuente, origen: 'enlace'
     };
 
     /* --- corte de enlace: el equipo guarda y reenvía después --- */
