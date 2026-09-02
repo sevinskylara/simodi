@@ -470,7 +470,8 @@ input:focus, select:focus, textarea:focus{ outline:none; border-color:var(--teal
 .tab-panel.activo{ display:flex; }
 #detDispositivo{ display:flex; flex-direction:column; gap:14px; }
 
-.rango-tiempo{ display:flex; gap:5px; }
+.rango-tiempo{ display:flex; gap:5px; align-items:center; }
+.nota-rango{ font-family:var(--mono); font-size:11px; color:var(--texto-tenue); margin-left:6px; }
 .rango{
   font-family:var(--mono); font-size:11.5px; color:var(--texto-dim); background:var(--panel-2);
   border:1px solid var(--borde); border-radius:7px; padding:6px 12px; cursor:pointer;

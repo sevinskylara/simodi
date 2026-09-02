@@ -640,6 +640,18 @@ var UI = (function () {
     var ms = d.muestras.filter(function (x) { return x.t >= desde; });
     if (!ms.length) ms = d.muestras.slice(-2);
 
+    // Si el dispositivo lleva menos tiempo transmitiendo que el rango elegido,
+    // dos rangos distintos (ej. 12 h y 24 h) van a mostrar exactamente lo mismo
+    // porque no hay más historial guardado: se avisa para que no parezca un error.
+    var notaRango = U.$('#rangoNota');
+    var horasDisponibles = d.muestras.length ? (ahora - d.muestras[0].t) / 3600000 : 0;
+    if (horasDisponibles < rangoHoras - 0.25) {
+      notaRango.hidden = false;
+      notaRango.textContent = 'Solo hay ' + U.duracion(horasDisponibles * 3600000) + ' de historial en este equipo';
+    } else {
+      notaRango.hidden = true;
+    }
+
     Graf.barrasDiuresis(U.$('#gDiuresis'), Modelo.bucketsHorarios(d, rangoHoras), {
       pesoKg: p ? p.pesoKg : null, umbralMlH: m.umbralMlH, umbralPoliuriaMlH: m.umbralPoliuriaMlH
     });
