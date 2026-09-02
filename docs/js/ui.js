@@ -756,9 +756,11 @@ var UI = (function () {
     var dispSel = cama.dispositivoId;
     function pintarListaDisp() {
       var lista = Modelo.dispositivosLibres();
-      // El dispositivo ya asignado a esta cama también tiene que poder elegirse.
-      if (cama.dispositivoId && !lista.some(function (x) { return x.id === cama.dispositivoId; })) {
-        lista = [Modelo.estado.dispositivos[cama.dispositivoId]].concat(lista);
+      // El dispositivo ya asignado a esta cama también tiene que poder elegirse,
+      // salvo que sea uno gestionado por otra estación (no existe en este navegador).
+      var actual = cama.dispositivoId ? Modelo.estado.dispositivos[cama.dispositivoId] : null;
+      if (actual && !lista.some(function (x) { return x.id === actual.id; })) {
+        lista = [actual].concat(lista);
       }
       var cont = U.$('#listaDisp');
       cont.innerHTML = lista.length ? lista.map(function (d) {
