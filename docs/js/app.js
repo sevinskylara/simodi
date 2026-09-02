@@ -21,9 +21,10 @@ var Acciones = (function () {
 
   function agregarCama() {
     if (!confirm('¿Agregar una nueva cama a la sala?')) return;
-    var n = Modelo.estado.camas.length + 1;
-    var letra = 'A';
-    var num = n;
+    // Se rellena el primer número libre (no siempre el siguiente al final de
+    // la lista): si se borró la UTI-03, la próxima cama que se agregue vuelve
+    // a ser la UTI-03 en lugar de saltar a un número más alto.
+    var letra = 'A', num = 1;
     while (Modelo.buscarCama(letra + num)) num++;
     var id = letra + num;
     var cama = {
