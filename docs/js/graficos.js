@@ -646,101 +646,147 @@ var Graf = (function () {
      El gráfico muestra la categoría obtenida, no una escala numérica
      de hidratación ni el RGB crudo del sensor.
   */
-  function tiraColor(canvas, muestras, opts) {
-    opts = opts || {};
+function tiraColor(canvas, muestras, opts) {
+  opts = opts || {};
 
-    var p = preparar(canvas, opts.alto || 140);
-    var ctx = p.ctx;
-    var w = p.w;
-    var h = p.h;
+  var p = preparar(canvas, opts.alto || 140);
+  var ctx = p.ctx;
+  var w = p.w;
+  var h = p.h;
 
-    var pad = { l: 8, r: 8, t: 10, b: 34 };
+  var pad = { l: 8, r: 8, t: 10, b: 34 };
 
-    if (!muestras || !muestras.length) {
-      vacio(ctx, w, h);
-      return;
-    }
+  if (!muestras || !muestras.length) {
+    vacio(ctx, w, h);
+    return;
+  }
 
-    var t0 = muestras[0].t;
-    var t1 = muestras[muestras.length - 1].t;
+  var t0 = muestras[0].t;
+  var t1 = muestras[muestras.length - 1].t;
 
-    var n = Math.min(
-      muestras.length,
-      Math.max(
-        24,
-        Math.floor(
-          (w - pad.l - pad.r) / 6
-        )
-      )
-    );
+  if (t1 === t0) {
+    t1 = t0 + 1;
+  }
 
-    var altoTira =
-      h -
-      pad.t -
-      pad.b;
+  var anchoGrafico = w - pad.l - pad.r;
+  var altoTira = h - pad.t - pad.b;
 
-    var ancho =
-      (w - pad.l - pad.r) /
-      n;
+  function xDe(t) {
+    return pad.l + ((t - t0) / (t1 - t0)) * anchoGrafico;
+  }
 
-    var zonas = [];
+  /*
+     Primero se clasifican TODAS las muestras.
+     Después se agrupan únicamente las consecutivas que pertenecen
+     a la misma categoría.
 
-    for (var i = 0; i < n; i++) {
-      var idx = Math.floor(
-        i *
-        (muestras.length - 1) /
-        (n - 1 || 1)
-      );
+     De esta forma no se pierden cambios breves de color.
+  */
+  var tramos = [];
 
-      var m = muestras[idx];
-      var cl = U.clasificarColor(m.rgb);
-      var x = pad.l + i * ancho;
+  muestras.forEach(function (m, i) {
+    var cl = U.clasificarColor(m.rgb);
+    var anterior = tramos.length ? tramos[tramos.length - 1] : null;
 
-      /* Se muestra el color de la categoría */
-      ctx.fillStyle = cl.hex;
-
-      ctx.fillRect(
-        x,
-        pad.t,
-        Math.ceil(ancho) + .5,
-        altoTira
-      );
-
-      zonas.push({
-        x0: x,
-        x1: x + ancho,
-        html:
-          '<b>' +
-          cl.nombre +
-          '</b><br>' +
-          etiquetaHora(m.t)
+    if (anterior && anterior.clave === cl.clave) {
+      anterior.t1 = m.t;
+      anterior.ultimaMuestra = i;
+    } else {
+      tramos.push({
+        clave: cl.clave,
+        nombre: cl.nombre,
+        hex: cl.hex,
+        estado: cl.estado,
+        detalle: cl.detalle || '',
+        t0: m.t,
+        t1: m.t,
+        primeraMuestra: i,
+        ultimaMuestra: i
       });
     }
+  });
 
-    /* Marco */
-    ctx.strokeStyle = css('--borde');
-    ctx.lineWidth = 1;
+  /*
+     El final visual de cada tramo se extiende hasta el comienzo
+     del siguiente. El último llega hasta el final del gráfico.
+  */
+  var zonas = [];
 
-    ctx.strokeRect(
-      pad.l + .5,
-      pad.t + .5,
-      w - pad.l - pad.r - 1,
-      altoTira - 1
+  tramos.forEach(function (tramo, i) {
+    var inicio = tramo.t0;
+    var fin;
+
+    if (i < tramos.length - 1) {
+      fin = tramos[i + 1].t0;
+    } else {
+      fin = t1;
+    }
+
+    var x0 = xDe(inicio);
+    var x1 = xDe(fin);
+
+    /*
+       Si el cambio duró muy poco, se garantiza al menos un pequeño
+       ancho visible para que no desaparezca del historial.
+    */
+    var ancho = Math.max(2, x1 - x0);
+
+    ctx.fillStyle = tramo.hex;
+    ctx.fillRect(
+      x0,
+      pad.t,
+      ancho,
+      altoTira
     );
 
-    /* Eje temporal */
-    ejeTiempo(
-      ctx,
-      w,
-      h,
-      pad,
-      t0,
-      t1,
-      4
-    );
+    var textoTiempo;
 
-    enganchar(canvas, zonas);
-  }
+    if (i < tramos.length - 1) {
+      textoTiempo =
+        etiquetaHora(inicio) +
+        ' – ' +
+        etiquetaHora(fin);
+    } else {
+      textoTiempo =
+        'Desde ' +
+        etiquetaHora(inicio);
+    }
+
+    zonas.push({
+      x0: x0,
+      x1: Math.max(x0 + 2, x1),
+      html:
+        '<b>' +
+        tramo.nombre +
+        '</b><br>' +
+        textoTiempo
+    });
+  });
+
+  /* Marco exterior */
+  ctx.strokeStyle = css('--borde');
+  ctx.lineWidth = 1;
+
+  ctx.strokeRect(
+    pad.l + .5,
+    pad.t + .5,
+    anchoGrafico - 1,
+    altoTira - 1
+  );
+
+  /* Eje temporal */
+  ejeTiempo(
+    ctx,
+    w,
+    h,
+    pad,
+    t0,
+    t1,
+    4
+  );
+
+  enganchar(canvas, zonas);
+}
 
   function vacio(ctx, w, h) {
     ctx.fillStyle = css('--texto-tenue');
