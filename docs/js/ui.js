@@ -234,9 +234,9 @@ var UI = (function () {
       .filter(function (a) { return !a.reconocida; })
       .slice(0, 3);
 
-    var sub24 = Modelo.bucketsHorarios(d, rangoHoras).map(function (b) {
-      return b.mlH;
-    });
+    var sub24 = Modelo.bucketsHorarios(d, rangoHoras)
+      .map(function (b) { return b.mlH; })
+      .filter(function (v) { return v !== null; });
 
     div.innerHTML =
       '<div class="cama-head">' +

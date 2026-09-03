@@ -305,6 +305,20 @@ var Graf = (function () {
 
     buckets.forEach(function (b, i) {
       var x = pad.l + (area / buckets.length) * i + 1;
+
+      // Hora sin datos todavía (fuera del historial real del equipo): se
+      // deja el espacio vacío en la grilla en vez de dibujar una barra en
+      // cero, para que las 12 h / 24 h elegidas siempre ocupen el ancho
+      // completo del gráfico.
+      if (b.sinDatos || b.mlH === null) {
+        zonas.push({
+          x0: x - 1,
+          x1: x + ancho + 1,
+          html: '<b>Sin datos</b><br>' + etiquetaHora(b.t0) + '–' + etiquetaHora(b.t1)
+        });
+        return;
+      }
+
       var alto = (b.mlH / max) * (h - pad.t - pad.b);
       var y = h - pad.b - alto;
 

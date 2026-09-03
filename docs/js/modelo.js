@@ -382,26 +382,32 @@ var Modelo = (function () {
   }
 
   /* Serie de diuresis por hora de reloj (para el gráfico de barras). */
+  /* Siempre devuelve exactamente `horas` casilleros (uno por hora), aunque
+     el dispositivo no tenga tanto historial: las horas sin datos quedan
+     marcadas con sinDatos:true en vez de omitirse, para que el rango
+     elegido (6/12/24 h) ocupe siempre el ancho completo del gráfico. */
   function bucketsHorarios(d, horas) {
     var ms = d.muestras;
-    var out = [];
-    if (ms.length < 2) return out;
-    var fin = ms[ms.length - 1].t;
+    var hayDatos = ms.length >= 2;
+    var fin = hayDatos ? ms[ms.length - 1].t : (d.reloj || Date.now());
     var finHora = Math.ceil(fin / 3600000) * 3600000;
+    var out = [];
     for (var h = horas - 1; h >= 0; h--) {
       var t1 = finHora - h * 3600000;
       var t0 = t1 - 3600000;
-      if (t1 < ms[0].t) continue;
-      var a = volumenEn(ms, Math.max(t0, ms[0].t));
-      var b = volumenEn(ms, Math.min(t1, fin));
-      var fraccion = (Math.min(t1, fin) - Math.max(t0, ms[0].t)) / 3600000;
-      if (fraccion <= 0.08) continue;                 // hora demasiado incompleta
-      out.push({
-        t0: t0, t1: t1,
-        ml: Math.max(0, b - a),
-        mlH: Math.max(0, b - a) / fraccion,           // normalizado a hora completa
-        parcial: fraccion < 0.95
-      });
+      var bucket = { t0: t0, t1: t1, ml: null, mlH: null, parcial: false, sinDatos: true };
+      if (hayDatos && t1 >= ms[0].t) {
+        var a = volumenEn(ms, Math.max(t0, ms[0].t));
+        var b = volumenEn(ms, Math.min(t1, fin));
+        var fraccion = (Math.min(t1, fin) - Math.max(t0, ms[0].t)) / 3600000;
+        if (fraccion > 0.08) {                        // hora demasiado incompleta: se descarta igual
+          bucket.ml = Math.max(0, b - a);
+          bucket.mlH = Math.max(0, b - a) / fraccion; // normalizado a hora completa
+          bucket.parcial = fraccion < 0.95;
+          bucket.sinDatos = false;
+        }
+      }
+      out.push(bucket);
     }
     return out;
   }
@@ -411,6 +417,7 @@ var Modelo = (function () {
     var n = 0;
     for (var i = buckets.length - 1; i >= 0; i--) {
       if (buckets[i].parcial && i === buckets.length - 1) continue;   // la hora en curso no cuenta
+      if (buckets[i].sinDatos) break;   // un hueco sin datos corta la racha: no se puede afirmar que siguió igual
       if (buckets[i].mlH / pesoKg < umbralMlKgH) n++; else break;
     }
     return n;
