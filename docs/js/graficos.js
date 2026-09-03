@@ -127,20 +127,32 @@ var Graf = (function () {
   function ejeTiempo(ctx, w, h, pad, t0, t1, marcas) {
     ctx.font = '10px ' + (css('--mono') || 'monospace');
     ctx.fillStyle = css('--texto-tenue');
-    ctx.textAlign = 'center';
     ctx.textBaseline = 'top';
 
-    var n = marcas || 5;
+    // En gráficos angostos (ej. Temperatura, que comparte la mitad del
+    // ancho) pedir 5 marcas hace que las etiquetas se solapen entre sí.
+    // Se mide el ancho real de una etiqueta representativa ("07:10 p. m.")
+    // y se limita la cantidad de marcas a lo que entra sin pisarse.
+    // La etiqueta de una punta queda alineada al borde (todo su ancho cae
+    // hacia el centro) mientras que su vecina queda centrada (solo la mitad
+    // de su ancho cae hacia afuera); por eso el espacio mínimo por marca no
+    // es "un ancho de etiqueta", sino más cerca de uno y medio.
+    var anchoEtiqueta = ctx.measureText('07:10 p. m.').width;
+    var maxPorAncho = Math.max(1, Math.floor((w - pad.l - pad.r) / (anchoEtiqueta * 1.3)));
+    var n = Math.max(1, Math.min(marcas || 5, maxPorAncho));
 
     for (var i = 0; i <= n; i++) {
       var t = t0 + (t1 - t0) * (i / n);
       var x = pad.l + (w - pad.l - pad.r) * (i / n);
 
-      ctx.fillText(
-        etiquetaHora(t),
-        U.clamp(x, pad.l + 14, w - pad.r - 14),
-        h - pad.b + 9
-      );
+      // La primera y la última etiqueta se alinean hacia adentro (no se
+      // centran) para que el texto nunca se recorte contra el borde del
+      // lienzo; las del medio se mantienen centradas sobre su marca.
+      if (i === 0) { ctx.textAlign = 'left'; x = pad.l; }
+      else if (i === n) { ctx.textAlign = 'right'; x = w - pad.r; }
+      else { ctx.textAlign = 'center'; }
+
+      ctx.fillText(etiquetaHora(t), x, h - pad.b + 9);
     }
   }
 
