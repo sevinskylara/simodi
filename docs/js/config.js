@@ -87,15 +87,19 @@ var CFG = {
    químico ni cuantifica bilirrubina o sangre. */
    
 coloresOrina: [
-  {clave: 'transparente',
+  {
+    clave: 'transparente',
     hex: '#F7F7E8',
     nombre: 'Transparente',
-    estado: 'ok'
+    estado: 'ok',
+    detalle: ''
   },
-  {clave: 'amarillo',
+  {
+    clave: 'amarillo',
     hex: '#F2D84A',
     nombre: 'Amarillo',
-    estado: 'ok'
+    estado: 'ok',
+    detalle: ''
   },
   {
     clave: 'rojizo',
@@ -104,7 +108,8 @@ coloresOrina: [
     estado: 'grave',
     detalle: 'Coloración rojiza: puede asociarse a presencia de sangre. Requiere valoración clínica.'
   },
-  {clave: 'marron',
+  {
+    clave: 'marron',
     hex: '#6B4423',
     nombre: 'Marrón oscuro',
     estado: 'grave',
