@@ -722,8 +722,6 @@ function tiraColor(canvas, muestras, opts) {
      El final visual de cada tramo se extiende hasta el comienzo
      del siguiente. El último llega hasta el final del gráfico.
   */
-  var zonas = [];
-
   tramos.forEach(function (tramo, i) {
     var inicio = tramo.t0;
     var fin;
@@ -750,29 +748,25 @@ function tiraColor(canvas, muestras, opts) {
       ancho,
       altoTira
     );
+  });
 
-    var textoTiempo;
-
-    if (i < tramos.length - 1) {
-      textoTiempo =
-        etiquetaHora(inicio) +
-        ' – ' +
-        etiquetaHora(fin);
-    } else {
-      textoTiempo =
-        'Desde ' +
-        etiquetaHora(inicio);
-    }
-
-    zonas.push({
-      x0: x0,
-      x1: Math.max(x0 + 2, x1),
-      html:
-        '<b>' +
-        tramo.nombre +
-        '</b><br>' +
-        textoTiempo
-    });
+  /*
+     El hover se arma por MUESTRA, no por tramo: si toda la ventana es
+     del mismo color hay un solo tramo pintado, pero el cursor tiene que
+     poder recorrer las distintas horas igual que en el resto de los
+     gráficos (temperatura, volumen) en vez de mostrar siempre el mismo
+     dato fijo.
+  */
+  var zonas = muestras.map(function (m, i) {
+    var cl = U.clasificarColor(m.rgb);
+    var x = xDe(m.t);
+    var xAnt = i > 0 ? xDe(muestras[i - 1].t) : x;
+    var xSig = i < muestras.length - 1 ? xDe(muestras[i + 1].t) : x;
+    return {
+      x0: (xAnt + x) / 2,
+      x1: (x + xSig) / 2,
+      html: '<b>' + cl.nombre + '</b><br>' + etiquetaHora(m.t)
+    };
   });
 
   /* Marco exterior */
