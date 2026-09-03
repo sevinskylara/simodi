@@ -81,38 +81,36 @@ var CFG = {
     }
   },
 
-  /* ---------------- Escala colorimétrica de la orina ----------------
-     Los 8 niveles clásicos de la carta de hidratación (Armstrong) más los
-     colores patológicos que el sensor RGB debe poder discriminar.        */
-  escalaColor: [
-    { n:1, hex:'#F8F7D8', nombre:'Transparente',    hidratacion:'Sobrehidratación',      estado:'aviso' },
-    { n:2, hex:'#F7F3B0', nombre:'Amarillo pálido', hidratacion:'Hidratación óptima',    estado:'ok'    },
-    { n:3, hex:'#F5EB84', nombre:'Amarillo claro',  hidratacion:'Hidratación óptima',    estado:'ok'    },
-    { n:4, hex:'#F2E05A', nombre:'Amarillo',        hidratacion:'Hidratación adecuada',  estado:'ok'    },
-    { n:5, hex:'#EED42E', nombre:'Ámbar claro',     hidratacion:'Hidratación limítrofe', estado:'ok'    },
-    { n:6, hex:'#E5BF17', nombre:'Ámbar',           hidratacion:'Deshidratación leve',   estado:'aviso' },
-    { n:7, hex:'#D4A017', nombre:'Ámbar oscuro',    hidratacion:'Deshidratación',        estado:'aviso' },
-    { n:8, hex:'#B8860B', nombre:'Miel oscuro',     hidratacion:'Deshidratación severa', estado:'grave' }
-  ],
-
-  /* Colores fuera de la escala normal: disparan alerta clínica. */
-  coloresAnomalos: [
-    { clave:'hematuria', hex:'#B0413E', nombre:'Rojiza / hematuria',
-      hidratacion:'Sangre en orina', estado:'critico',
-      detalle:'Posible hematuria: sangrado urológico, trauma o post-quirúrgico.' },
-    { clave:'rosada',    hex:'#D08C8C', nombre:'Rosada',
-      hidratacion:'Hematuria leve', estado:'grave',
-      detalle:'Orina rosada: hematuria microscópica o lavado vesical teñido.' },
-    { clave:'coluria',   hex:'#6B4423', nombre:'Marrón / coluria',
-      hidratacion:'Bilirrubina o mioglobina', estado:'critico',
-      detalle:'Orina caoba: coluria (hepatopatía) o rabdomiólisis. Avisar al médico.' },
-    { clave:'turbia',    hex:'#E4E1CE', nombre:'Turbia / lechosa',
-      hidratacion:'Piuria', estado:'grave',
-      detalle:'Orina turbia: sospecha de infección urinaria o piuria.' },
-    { clave:'verdosa',   hex:'#7D9B3A', nombre:'Verdosa',
-      hidratacion:'Pigmento anómalo', estado:'grave',
-      detalle:'Coloración verdosa: Pseudomonas, propofol o azul de metileno.' }
-  ],
+/* ---------------- Clasificación colorimétrica de la orina ----------------
+   SÍMODI clasifica el color observado en cuatro categorías simples.
+   El sensor RGB identifica características ópticas; no realiza diagnóstico
+   químico ni cuantifica bilirrubina o sangre. */
+   
+coloresOrina: [
+  {clave: 'transparente',
+    hex: '#F7F7E8',
+    nombre: 'Transparente',
+    estado: 'ok'
+  },
+  {clave: 'amarillo',
+    hex: '#F2D84A',
+    nombre: 'Amarillo',
+    estado: 'ok'
+  },
+  {
+    clave: 'rojizo',
+    hex: '#B85C5C',
+    nombre: 'Rojizo',
+    estado: 'grave',
+    detalle: 'Coloración rojiza: puede asociarse a presencia de sangre. Requiere valoración clínica.'
+  },
+  {clave: 'marron',
+    hex: '#6B4423',
+    nombre: 'Marrón oscuro',
+    estado: 'grave',
+    detalle: 'Coloración marrón oscura: puede asociarse a pigmentos biliares. Requiere valoración clínica.'
+  }
+],
 
   /* ---------------- Enlace con el dispositivo ---------------- */
   enlace: {
