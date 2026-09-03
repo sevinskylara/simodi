@@ -106,22 +106,16 @@ var Alertas = (function () {
       }
     }
 
-    /* ---- Color ---- */
-    if (m.color) {
-      if (m.color.anomalo) {
-        a('color', m.color.estado === 'critico' ? 'critica' : 'alta',
-          'Color anómalo: ' + m.color.nombre, m.color.detalle);
-      } else if (m.color.nivel >= 8) {
-        a('color', 'media', 'Orina muy concentrada',
-          'Escala ' + m.color.nivel + '/8 · ' + m.color.hidratacion + '. Revisar aporte hídrico.');
-      } else if (m.color.nivel <= 1) {
-        a('color', 'media', 'Orina muy diluida',
-          'Escala 1/8 · posible sobrehidratación o efecto diurético.');
-      }
-    }
-
-    return out;
+   /* ---- Color ---- */
+if (m.color) {
+  if (m.color.clave === 'rojizo') {
+    a('color', 'alta', 'Coloración rojiza',
+      m.color.detalle);
+  } else if (m.color.clave === 'marron') {
+    a('color', 'alta', 'Coloración marrón oscura',
+      m.color.detalle);
   }
+}
 
   /* --------------------- Ciclo de vida de la alerta ------------------ */
   function actualizar() {
