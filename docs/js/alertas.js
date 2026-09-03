@@ -106,16 +106,17 @@ var Alertas = (function () {
       }
     }
 
-   /* ---- Color ---- */
-if (m.color) {
-  if (m.color.clave === 'rojizo') {
-    a('color', 'alta', 'Coloración rojiza',
-      m.color.detalle);
-  } else if (m.color.clave === 'marron') {
-    a('color', 'alta', 'Coloración marrón oscura',
-      m.color.detalle);
+    /* ---- Color ---- */
+    if (m.color) {
+      if (m.color.clave === 'rojizo') {
+        a('color', 'alta', 'Coloración rojiza', m.color.detalle);
+      } else if (m.color.clave === 'marron') {
+        a('color', 'alta', 'Coloración marrón oscura', m.color.detalle);
+      }
+    }
+
+    return out;
   }
-}
 
   /* --------------------- Ciclo de vida de la alerta ------------------ */
   function actualizar() {
