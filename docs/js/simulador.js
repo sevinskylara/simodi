@@ -65,7 +65,7 @@ var Simulador = (function () {
     },
 
     hematuria: {
-      nombre: 'Coloración rojiza post-quirúrgica',
+      nombre: 'Coloración rojiza',
       resumen: 'Diuresis conservada con coloración rojiza de la orina.',
       caudal: function (h) { return 1.35 + 0.2 * Math.sin(h / 1.5); },
       temp:   function (h) { return 37.0 + 0.1 * Math.sin(h / 3); },
