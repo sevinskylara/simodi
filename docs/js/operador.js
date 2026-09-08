@@ -1,46 +1,23 @@
 /* =====================================================================
-   operador.js · Quién está usando esta computadora.
+   operador.js · Quién hizo cada cambio.
 
-   Es identidad de DISPOSITIVO, no de sistema: vive en una clave de
-   localStorage propia, separada del resto del estado (Almacen), para que
-   nunca se pise con una sincronización en la nube ni viaje entre compus.
-   Cambiar de turno en la misma PC es tan simple como tocar el chip de
-   arriba y escribir otro nombre.
+   Antes se le preguntaba el nombre a cada persona al abrir la central.
+   Ahora que entrar ya exige loguearse (auth.js, Firebase Auth), no hace
+   falta preguntar de nuevo: el registro de auditoría usa directamente
+   la identidad de la cuenta con la que se inició sesión.
    ===================================================================== */
 
 var Operador = (function () {
 
-  var CLAVE = 'simodi.operador.v1';
-  var actual = null;
-
-  function cargar() {
+  function actual() {
     try {
-      var crudo = localStorage.getItem(CLAVE);
-      actual = crudo ? JSON.parse(crudo) : null;
-    } catch (e) { actual = null; }
-    return actual;
+      if (typeof firebase !== 'undefined' && firebase.auth && firebase.auth().currentUser) {
+        var u = firebase.auth().currentUser;
+        return u.displayName || u.email || 'Sistema';
+      }
+    } catch (e) { /* Firebase todavía no inicializó: se sella como Sistema */ }
+    return 'Sistema';
   }
 
-  function establecer(nombre, rol) {
-    actual = { nombre: nombre.trim(), rol: rol || 'Otro', desde: Date.now() };
-    try { localStorage.setItem(CLAVE, JSON.stringify(actual)); } catch (e) { }
-    return actual;
-  }
-
-  function necesitaPreguntar() {
-    return !actual || !actual.nombre;
-  }
-
-  /* Nombre para mostrar / para sellar eventos. 'Invitado' si nunca se cargó. */
-  function nombreActual() {
-    return actual && actual.nombre ? actual.nombre : 'Invitado';
-  }
-
-  cargar();
-
-  return {
-    cargar: cargar, establecer: establecer,
-    necesitaPreguntar: necesitaPreguntar, actual: nombreActual,
-    datos: function () { return actual; }
-  };
+  return { actual: actual };
 })();

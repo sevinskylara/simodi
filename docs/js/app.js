@@ -156,15 +156,9 @@ var Acciones = (function () {
   /* ------------------------------ Alertas -------------------------------- */
 
   /* Silenciar una alerta reprograma su reaparición según el motivo elegido
-     (ver CFG.umbrales.reAlertaMin) y deja constancia de quién lo hizo. No
-     está disponible para invitados: sin nombre cargado no hay a quién
-     imputar la decisión clínica de posponer una alarma. */
+     (ver CFG.umbrales.reAlertaMin) y deja constancia de quién lo hizo —
+     la identidad de la cuenta con la que se inició sesión. */
   function silenciarAlerta(codigo, motivo) {
-    if (Operador.actual() === 'Invitado') {
-      UI.toast('Para silenciar alarmas hace falta identificarse con un nombre.', 'error');
-      return false;
-    }
-
     var al = Alertas.silenciar(codigo, motivo);
     if (!al) return false;
 
@@ -338,7 +332,6 @@ function iniciarSimodi() {
 
   UI.bind();
   UI.pintarReloj();
-  UI.pintarOperador();
   UI.pintarTodo();
 
   Alertas.actualizar();
@@ -350,11 +343,6 @@ function iniciarSimodi() {
     UI.toast(
       'Sala de ejemplo cargada en modo piloto. Probá abrir una cama para ver el detalle.'
     );
-  }
-
-
-  if (Operador.necesitaPreguntar()) {
-    UI.abrirOperador();
   }
 
 

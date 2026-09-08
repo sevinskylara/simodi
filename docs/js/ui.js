@@ -453,20 +453,11 @@ var UI = (function () {
     U.$('#avisoReal').classList.toggle('oculto', !modoReal);
     U.$('#chkPilotoEnReal').checked = Modelo.estado.mostrarPilotoEnReal;
 
-    var chip = U.$('#chipEnlace');
-    chip.className = 'chip';
-
-    if (!modoReal) {
-      chip.classList.add('simulado');
-      chip.querySelector('.chip-txt').textContent = 'Simulación · piloto';
-    } else {
+    if (modoReal) {
       var e = Conexion.estado();
       var det = U.$('#avisoRealDetalle');
 
       if (e.estado === 'conectado') {
-        chip.classList.add('en-linea');
-        chip.querySelector('.chip-txt').textContent = 'En línea · ' + e.tipo;
-
         det.textContent =
           'Recibiendo datos del dispositivo (' +
           e.recibidas +
@@ -475,20 +466,14 @@ var UI = (function () {
           ').';
 
       } else if (e.estado === 'conectando') {
-        chip.classList.add('simulado');
-        chip.querySelector('.chip-txt').textContent = 'Conectando…';
         det.textContent = e.detalle || 'Estableciendo enlace con el dispositivo.';
 
       } else if (e.estado === 'error') {
-        chip.classList.add('error');
-        chip.querySelector('.chip-txt').textContent = 'Enlace caído';
         det.textContent =
           (e.detalle || 'Sin conexión') +
           '. Los datos mostrados son los últimos recibidos.';
 
       } else {
-        chip.classList.add('error');
-        chip.querySelector('.chip-txt').textContent = 'Sin dispositivo';
         det.textContent =
           'Sin dispositivo conectado. Configurá el enlace para recibir datos del ESP32.';
       }
@@ -515,85 +500,10 @@ var UI = (function () {
 
     var btnSonido = U.$('#btnSonido');
     btnSonido.classList.toggle('mudo', U.estaSilenciado());
-
-    pintarChipNube();
-  }
-
-  function pintarChipNube() {
-    var chip = U.$('#chipNube');
-
-    if (typeof Nube === 'undefined' || !Nube.configurado()) {
-      chip.className = 'chip oculto';
-      return;
-    }
-
-    chip.className = 'chip';
-
-    var txt = chip.querySelector('.chip-txt');
-
-    if (Nube.activo()) {
-      chip.classList.add('en-linea');
-      txt.textContent = 'Base compartida · en línea';
-    } else {
-      chip.classList.add('simulado');
-      txt.textContent = 'Base compartida · conectando…';
-    }
   }
 
   function pintarReloj() {
     U.$('#reloj').textContent = U.horaSeg(Date.now());
-  }
-
-  /* ============================== OPERADOR =============================== */
-
-  function pintarOperador() {
-    U.$('#operadorTxt').textContent = Operador.actual();
-  }
-
-  function abrirOperador() {
-    var d = Operador.datos();
-
-    U.$('#opNombre').value = d ? d.nombre : '';
-    U.$('#opRol').value = d ? d.rol : 'Enfermero/a';
-
-    var primeraVez = Operador.necesitaPreguntar();
-
-    U.$('#opTitulo').textContent =
-      primeraVez
-        ? '¿Quién está operando esta computadora?'
-        : 'Cambiar operador de esta computadora';
-
-    U.$('#opNota').style.display = primeraVez ? '' : 'none';
-    U.$('#btnInvitadoOperador').classList.toggle('oculto', !primeraVez);
-    U.$('#btnCerrarOperador').classList.toggle('oculto', primeraVez);
-
-    U.$('#modalOperador').classList.add('abierto');
-    U.$('#modalOperador').setAttribute('aria-hidden', 'false');
-    U.$('#opNombre').focus();
-  }
-
-  function cerrarOperador() {
-    if (Operador.necesitaPreguntar()) return;
-
-    U.$('#modalOperador').classList.remove('abierto');
-    U.$('#modalOperador').setAttribute('aria-hidden', 'true');
-  }
-
-  function guardarOperador() {
-    var nombre = U.$('#opNombre').value.trim();
-
-    if (!nombre) {
-      U.$('#opNombre').focus();
-      return;
-    }
-
-    Operador.establecer(nombre, U.$('#opRol').value);
-    pintarOperador();
-
-    U.$('#modalOperador').classList.remove('abierto');
-    U.$('#modalOperador').setAttribute('aria-hidden', 'true');
-
-    toast('Ahora estás operando como ' + nombre);
   }
 
   /* =============================== TODO ================================= */
@@ -1481,14 +1391,6 @@ var UI = (function () {
   /* ============================ MODAL SILENCIAR =========================== */
 
   function pedirSilenciar(codigo, titulo) {
-    if (Operador.actual() === 'Invitado') {
-      toast(
-        'Para silenciar alarmas hace falta identificarse con un nombre.',
-        'error'
-      );
-      return;
-    }
-
     codigoSilenciar = codigo;
 
     U.$('#silTitulo').textContent = '"' + titulo + '"';
@@ -1517,24 +1419,8 @@ var UI = (function () {
   function abrirConfig() {
     var enlace = Modelo.estado.enlace;
     var med = Modelo.estado.medicion;
-    var op = Operador.datos();
 
     var html =
-      '<div class="subtitulo">Usuario de esta computadora</div>' +
-      '<p class="nota">Los cambios que hagas (asignar pacientes, registrar vaciados, etc.) quedan guardados a tu nombre en el registro de eventos. Cambiá esto al empezar tu turno.</p>' +
-
-      '<div class="fila" style="align-items:flex-end">' +
-        '<div class="campo">' +
-          '<label>Operando ahora</label>' +
-          '<input type="text" value="' +
-            U.esc(Operador.actual()) +
-            (op ? ' · ' + U.esc(op.rol) : '') +
-            '" disabled>' +
-        '</div>' +
-        '<button class="btn secundario chico" id="btnCambiarOperadorCfg">Cambiar usuario</button>' +
-      '</div>' +
-
-      '<div class="sep"></div>' +
       '<div class="subtitulo">Base de datos compartida</div>' +
 
       (
@@ -1641,11 +1527,6 @@ var UI = (function () {
       '</div>';
 
     U.$('#cfgCuerpo').innerHTML = html;
-
-    U.$('#btnCambiarOperadorCfg').onclick = function () {
-      cerrarConfig();
-      abrirOperador();
-    };
 
     U.$('#btnConectarCfg').onclick = function () {
       Modelo.estado.enlace.tipo = U.$('#cfgTipo').value;
@@ -1915,34 +1796,11 @@ var UI = (function () {
       confirmarSilenciar('espera');
     };
 
-    U.$('#chipOperador').onclick = abrirOperador;
-    U.$('#btnGuardarOperador').onclick = guardarOperador;
-    U.$('#btnCerrarOperador').onclick = cerrarOperador;
-
-    U.$('#btnInvitadoOperador').onclick = function () {
-      Operador.establecer('Invitado', 'Otro');
-      pintarOperador();
-      cerrarOperador();
-    };
-
-    U.$('#opNombre').addEventListener('keydown', function (ev) {
-      if (ev.key === 'Enter') {
-        guardarOperador();
-      }
-    });
-
-    U.$('#modalOperador').addEventListener('click', function (ev) {
-      if (ev.target.id === 'modalOperador') {
-        cerrarOperador();
-      }
-    });
-
     document.addEventListener('keydown', function (ev) {
       if (ev.key === 'Escape') {
         cerrarDetalle();
         cerrarAsignar();
         cerrarConfig();
-        cerrarOperador();
         cerrarSilenciar();
         cerrarTrasladar();
       }
@@ -1980,8 +1838,6 @@ var UI = (function () {
     abrirDetalle: abrirDetalle,
     abrirAsignar: abrirAsignar,
     abrirConfig: abrirConfig,
-    pintarOperador: pintarOperador,
-    abrirOperador: abrirOperador,
     toast: toast
   };
 
