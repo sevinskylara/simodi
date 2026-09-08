@@ -20,46 +20,6 @@ var UI = (function () {
 
   var SVG_RAYO = '<svg viewBox="0 0 24 24" fill="#fff"><path d="M13 2 4 14h6l-2 8 9-12h-6l2-8Z"/></svg>';
 
-  /* ============================== KPIs ================================ */
-
-  function pintarKpis() {
-    var camas = Modelo.camasVisibles();
-    var ocupadas = camas.filter(function (c) { return c.pacienteId; });
-    var alertas = Alertas.contarPorNivel();
-    var sinSenal = 0, enRiesgo = 0, enObjetivo = 0, conDato = 0;
-
-    ocupadas.forEach(function (c) {
-      var m = Modelo.metricas(c);
-      if (m.vacio) return;
-      if (m.sinSenalSeg > CFG.umbrales.segundosSinDatos) sinSenal++;
-      if (m.kdigo > 0) enRiesgo++;
-      if (m.mlKgH !== null) {
-        conDato++;
-        if (claseTasa(m.mlKgH) === 'ok') enObjetivo++;
-      }
-    });
-
-    var items = [
-      { rot: 'Camas ocupadas', val: ocupadas.length + ' / ' + camas.length, sub: (camas.length - ocupadas.length) + ' libres', clase: 'teal' },
-      { rot: 'En objetivo', val: conDato ? enObjetivo + ' / ' + conDato : '—',
-        sub: 'diuresis dentro de rango', clase: !conDato ? 'teal' : (enObjetivo === conDato ? 'ok' : (enObjetivo === 0 ? 'critico' : 'aviso')) },
-      { rot: 'En riesgo (KDIGO)', val: String(enRiesgo), sub: 'con oliguria sostenida', clase: enRiesgo ? 'critico' : 'ok' },
-      { rot: 'Alertas activas', val: String(alertas.critica + alertas.alta + alertas.media), sub: alertas.critica + ' críticas · ' + alertas.alta + ' altas', clase: (alertas.critica ? 'critico' : (alertas.alta ? 'aviso' : 'ok')) },
-      { rot: 'Sin señal', val: String(sinSenal), sub: 'equipos a reconectar', clase: sinSenal ? 'aviso' : 'ok' }
-    ];
-
-    var cont = U.$('#kpis');
-    cont.innerHTML = '';
-    items.forEach(function (it) {
-      var d = U.el('div', 'kpi ' + it.clase);
-      d.innerHTML =
-        '<div class="kpi-rotulo">' + U.esc(it.rot) + '</div>' +
-        '<div class="kpi-valor">' + U.esc(it.val) + '</div>' +
-        '<div class="kpi-sub">' + U.esc(it.sub) + '</div>';
-      cont.appendChild(d);
-    });
-  }
-
   /* ============================== MURAL ================================ */
 
   function claseEstado(cama, m) {
@@ -640,7 +600,6 @@ var UI = (function () {
 
   function pintarTodo() {
     pintarBarraEstado();
-    pintarKpis();
     pintarMural();
     pintarAlertas();
     pintarEventos();
