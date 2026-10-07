@@ -59,16 +59,14 @@ var Modelo = (function () {
     return true;
   }
 
-  /* Sala de ejemplo: 6 camas ocupadas con escenarios distintos + 2 libres. */
+  /* Sala de ejemplo: 5 camas ocupadas con escenarios distintos + 1 libre. */
   function sembrar() {
     var siembra = [
       { cama:'A1', nombre:'Ramírez, Elena',   hc:'HC-40218', edad:68, sexo:'F', pesoKg:62, escenario:'oliguria_lra',  dx:'Shock séptico de foco abdominal' },
       { cama:'A2', nombre:'Sosa, Martín',     hc:'HC-40233', edad:54, sexo:'M', pesoKg:88, escenario:'normal',        dx:'Post-operatorio de cirugía cardíaca' },
       { cama:'A3', nombre:'Quiroga, Beatriz', hc:'HC-40190', edad:77, sexo:'F', pesoKg:55, escenario:'sepsis',        dx:'Neumonía grave de la comunidad' },
       { cama:'A4', nombre:'Ledesma, Hugo',    hc:'HC-40251', edad:41, sexo:'M', pesoKg:79, escenario:'poliuria',      dx:'TEC grave · sospecha de diabetes insípida' },
-      { cama:'A6', nombre:'Pereyra, Nadia',   hc:'HC-40260', edad:33, sexo:'F', pesoKg:61, escenario:'hematuria',     dx:'Post-RTU vesical' },
-      { cama:'A7', nombre:'Ibarra, Carlos',   hc:'HC-40204', edad:62, sexo:'M', pesoKg:95, escenario:'obstruccion',   dx:'Pancreatitis aguda grave' },
-      { cama:'A5', nombre:'Vega, Rosa',       hc:'HC-40277', edad:70, sexo:'F', pesoKg:66, escenario:'enlace_intermitente', dx:'Post-operatorio de cadera' }
+      { cama:'A5', nombre:'Pereyra, Nadia',   hc:'HC-40260', edad:33, sexo:'F', pesoKg:61, escenario:'hematuria',     dx:'Post-RTU vesical' }
     ];
 
     E.camas = CFG.camasIniciales.map(function (c) {
@@ -89,7 +87,7 @@ var Modelo = (function () {
       cama.dispositivoId = d.id;
 
       // Batería inicial distinta por equipo, para que la sala de ejemplo no
-      // muestre los ocho dispositivos con el mismo nivel de carga.
+      // muestre todos los dispositivos con el mismo nivel de carga.
       d.bat = Math.round(35 + Math.random() * 65);
 
       // Se rellenan 26 h de historial para que la central "ya venga andando"
@@ -310,6 +308,7 @@ var Modelo = (function () {
   function aplicarCamaRemota(data) {
     var cama = buscarCama(data.id);
     if (!cama) {
+      if (E.camas.length >= CFG.maxCamas) return;   // la sala ya está completa
       cama = { id: data.id, etiqueta: data.etiqueta || data.id, pacienteId: null, dispositivoId: null };
       E.camas.push(cama);
     }

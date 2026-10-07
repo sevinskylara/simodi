@@ -20,6 +20,10 @@ var Acciones = (function () {
   }
 
   function agregarCama() {
+    if (Modelo.estado.camas.length >= CFG.maxCamas) {
+      UI.toast('La sala admite hasta ' + CFG.maxCamas + ' camas. Eliminá una cama libre para agregar otra.');
+      return;
+    }
     if (!confirm('¿Agregar una nueva cama a la sala?')) return;
     // Se rellena el primer número libre (no siempre el siguiente al final de
     // la lista): si se borró la UTI-03, la próxima cama que se agregue vuelve
@@ -173,121 +177,15 @@ var Acciones = (function () {
   }
 
 
-  /* ------------------------------ Exportar CSV -------------------------- */
+  /* ------------------------------ Exportar PDF -------------------------- */
+  /* El informe se arma en informe_pdf.js. */
 
-  function filaCsv(cama, d, m) {
-    var enc = [
-      't_iso',
-      'hora',
-      'peso_g',
-      'vol_ml',
-      'vol_total_ml',
-      'temp_c',
-      'r',
-      'g',
-      'b',
-      'color',
-      'bat_pct',
-      'rssi_dbm',
-      'origen'
-    ];
-
-    var filas = d.muestras.map(function (x) {
-      var cl = U.clasificarColor(x.rgb);
-
-      return [
-        new Date(x.t).toISOString(),
-        U.hora(x.t),
-        U.num(x.pesoG, 2),
-        U.num(x.volMl, 2),
-        U.num(x.volTotalMl, 2),
-        U.num(x.tempC, 2),
-        Math.round(x.rgb[0]),
-        Math.round(x.rgb[1]),
-        Math.round(x.rgb[2]),
-        cl.nombre,
-        Math.round(x.bat),
-        Math.round(x.rssi),
-        x.origen
-      ].join(',');
-    });
-
-    return enc.join(',') + '\n' + filas.join('\n');
+  function exportarCamaPdf(camaId) {
+    InformePDF.exportarCama(camaId);
   }
 
-
-  function exportarCamaCsv(camaId) {
-    var cama = Modelo.buscarCama(camaId);
-
-    if (!cama || !cama.dispositivoId) return;
-
-    var d = Modelo.estado.dispositivos[cama.dispositivoId];
-
-    var p = cama.pacienteId
-      ? Modelo.estado.pacientes[cama.pacienteId]
-      : null;
-
-    var nombreArchivo =
-      'simodi_' +
-      cama.etiqueta +
-      '_' +
-      (p ? p.hc : d.serie) +
-      '_' +
-      new Date().toISOString().slice(0, 10) +
-      '.csv';
-
-    var cab =
-      '# SÍMODI · ' +
-      cama.etiqueta +
-      (p
-        ? ' · ' + p.nombre + ' (' + p.hc + ', ' + p.pesoKg + ' kg)'
-        : '') +
-      ' · dispositivo ' +
-      d.serie +
-      '\n';
-
-    U.descargar(
-      nombreArchivo,
-      cab + filaCsv(cama, d, null)
-    );
-
-    UI.toast('CSV exportado');
-  }
-
-
-  function exportarTodoCsv() {
-    var partes = [];
-
-    Modelo.estado.camas.forEach(function (cama) {
-
-      if (!cama.dispositivoId) return;
-
-      var d = Modelo.estado.dispositivos[cama.dispositivoId];
-
-      var p = cama.pacienteId
-        ? Modelo.estado.pacientes[cama.pacienteId]
-        : null;
-
-      partes.push(
-        '# ' +
-        cama.etiqueta +
-        (p ? ' · ' + p.nombre : '') +
-        ' · ' +
-        d.serie
-      );
-
-      partes.push(filaCsv(cama, d, null));
-      partes.push('');
-    });
-
-    U.descargar(
-      'simodi_export_' +
-      new Date().toISOString().slice(0, 10) +
-      '.csv',
-      partes.join('\n')
-    );
-
-    UI.toast('Exportación completa generada');
+  function exportarTodoPdf() {
+    InformePDF.exportarTodo();
   }
 
 
@@ -301,8 +199,8 @@ var Acciones = (function () {
     vaciarBolsa: vaciarBolsa,
     trasladarPaciente: trasladarPaciente,
     silenciarAlerta: silenciarAlerta,
-    exportarCamaCsv: exportarCamaCsv,
-    exportarTodoCsv: exportarTodoCsv
+    exportarCamaPdf: exportarCamaPdf,
+    exportarTodoPdf: exportarTodoPdf
   };
 
 })();

@@ -511,12 +511,25 @@ var UI = (function () {
   function pintarTodo() {
     pintarBarraEstado();
     pintarMural();
+    pintarBotonNuevaCama();
     pintarAlertas();
     pintarEventos();
 
     if (camaAbierta) {
       actualizarDetalleAbierto();
     }
+  }
+
+  /* El botón "+ Cama" se deshabilita cuando la sala llega al máximo. */
+  function pintarBotonNuevaCama() {
+    var btn = U.$('#btnNuevaCama');
+    if (!btn) return;
+    var n = Modelo.estado.camas.length;
+    var llena = n >= CFG.maxCamas;
+    btn.disabled = llena;
+    btn.title = llena
+      ? 'Sala completa: máximo ' + CFG.maxCamas + ' camas'
+      : 'Agregar cama (' + n + ' de ' + CFG.maxCamas + ')';
   }
 
   var ALTURA_EVENTOS_SIN_FILAS = 300;
@@ -1516,7 +1529,7 @@ var UI = (function () {
         ' KB usados). No se envía a ningún servidor.</p>' +
 
       '<div class="acciones" style="justify-content:flex-start">' +
-        '<button class="btn secundario chico" id="btnExportarTodo">Exportar todo a CSV</button>' +
+        '<button class="btn secundario chico" id="btnExportarTodo">Exportar todo a PDF</button>' +
         '<button class="btn peligro chico" id="btnBorrarTodo">Borrar y reiniciar con la sala de ejemplo</button>' +
       '</div>' +
 
@@ -1567,7 +1580,7 @@ var UI = (function () {
     };
 
     U.$('#btnExportarTodo').onclick = function () {
-      Acciones.exportarTodoCsv();
+      Acciones.exportarTodoPdf();
     };
 
     U.$('#btnBorrarTodo').onclick = function () {
@@ -1768,7 +1781,7 @@ var UI = (function () {
 
     U.$('#btnExportar').onclick = function () {
       if (camaAbierta) {
-        Acciones.exportarCamaCsv(camaAbierta);
+        Acciones.exportarCamaPdf(camaAbierta);
       }
     };
 

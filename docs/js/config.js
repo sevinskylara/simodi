@@ -131,12 +131,13 @@ coloresOrina: [
     bleNombrePrefijo: 'URO-'
   },
 
-  /* ---------------- Camas iniciales del sector ---------------- */
+  /* ---------------- Camas del sector ---------------- */
+  maxCamas: 6,   // máximo de camas que se pueden tener en la sala
+
   camasIniciales: [
     { id:'A1', etiqueta:'UTI-01' }, { id:'A2', etiqueta:'UTI-02' },
     { id:'A3', etiqueta:'UTI-03' }, { id:'A4', etiqueta:'UTI-04' },
-    { id:'A5', etiqueta:'UTI-05' }, { id:'A6', etiqueta:'UTI-06' },
-    { id:'A7', etiqueta:'UTI-07' }, { id:'A8', etiqueta:'UTI-08' }
+    { id:'A5', etiqueta:'UTI-05' }, { id:'A6', etiqueta:'UTI-06' }
   ],
 
   /* Velocidades de simulación disponibles en modo piloto.
