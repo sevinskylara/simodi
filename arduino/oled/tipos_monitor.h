@@ -6,17 +6,13 @@
 // los tipos tienen que estar declarados antes en un header.
 
 struct DatosMonitor {
-  char  cama[8];             // "UTI-04"
-  char  paciente[24];        // "Quiroga, Beatriz"
-  char  modo[8];             // "PILOTO" (vacio = sin etiqueta)
-  int   bateria;             // %
+  int   bateria;            // %
   bool  cargando;
-  float diuresis;            // mL/kg/h
-  float temperatura;         // C
-  char  colorNombre[16];     // "Transparente"
-  uint8_t colR, colG, colB;  // color medido, para la muestra
-  int   volumenBolsa;        // mL
-  int   capacidadBolsa;      // mL
+  float diuresis;           // mL/kg/h
+  float temperatura;        // C
+  int   volumen;            // mL acumulados en la bolsa
+  int   capacidad;          // mL totales de la bolsa (ej. 2000)
+  char  colorNombre[16];    // "Transparente"
 };
 
 enum Estado { NORMAL, OLIGURIA, POLIURIA };

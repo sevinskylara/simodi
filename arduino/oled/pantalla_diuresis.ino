@@ -1,30 +1,28 @@
 /*
  * Pantalla local - Sistema Inteligente de Monitoreo de Diuresis
  * ESP32-DevKitC + TFT SPI ILI9488 480x320 (modo 18 bits)
+ * Version simplificada: diuresis, volumen (actual / total), temperatura,
+ * color y bateria.
  *
  * Libreria: Arduino_GFX_Library (moononournation)
- * Las fuentes van como archivos .h en la misma carpeta del sketch.
+ * Las fuentes y tipos_monitor.h van en la misma carpeta del sketch.
  *
- * Conexiones (segun esquematico):
- *   TFT_DC   -> GPIO2      TFT_CS   -> GPIO15
- *   TFT_SCK  -> GPIO18     TFT_MOSI -> GPIO23 (SDI)
- *   TFT_RST  -> GPIO4      SDO      -> sin conectar
- *   LED      -> 3V3
+ * Conexiones:
+ *   TFT_DC -> GPIO2   TFT_CS -> GPIO15   TFT_SCK -> GPIO18
+ *   TFT_MOSI -> GPIO23   TFT_RST -> GPIO4   LED -> 3V3
  *
- * Uso: completar un DatosMonitor con las mediciones y llamar a
- * actualizarPantalla(datos). Solo se redibuja lo que cambio.
- * Para la tendencia: agregarPuntoTendencia(diuresis) cada X minutos.
- *
- * Las fuentes son ASCII: no usar tildes ni enie en los textos.
+ * Uso: completar "datos" con las mediciones y llamar a actualizarPantalla(datos).
+ * Solo se redibuja lo que cambio. No usar tildes ni enie en los textos.
  */
 
 #include <Arduino_GFX_Library.h>
 #include "FreeMono12pt7b.h"
 #include "FreeMonoBold9pt7b.h"
 #include "FreeMonoBold12pt7b.h"
+#include "FreeMonoBold18pt7b.h"
 #include "FreeMonoBold24pt7b.h"
 #include "FreeMonoBold36pt7b.h"
-#include "tipos_monitor.h"   // struct DatosMonitor y enum Estado
+#include "tipos_monitor.h"   // struct DatosMonitor, enum Estado, rgb()
 
 // ------------------------------------------------------------------ Pines
 #define TFT_DC    2
@@ -33,49 +31,42 @@
 #define TFT_MOSI 23
 #define TFT_RST   4
 
-#define VELOCIDAD_SPI 10000000   // 10 MHz probado; se puede intentar 20-40 MHz
+#define VELOCIDAD_SPI 10000000
 
 Arduino_DataBus *bus = new Arduino_ESP32SPI(TFT_DC, TFT_CS, TFT_SCK, TFT_MOSI, GFX_NOT_DEFINED);
 Arduino_GFX *tft = new Arduino_ILI9488_18bit(bus, TFT_RST, 1 /* rotacion */, false);
 
 // --------------------------------------------------------------- Umbrales
-// Ajustarlos para que coincidan con los de la pagina web
-const float UMBRAL_OLIGURIA  = 0.5;   // mL/kg/h (KDIGO)
-const float UMBRAL_POLIURIA  = 3.0;   // mL/kg/h
-const float UMBRAL_FIEBRE    = 38.0;  // C
-const int   UMBRAL_BOLSA_PCT = 90;    // % de llenado
-const int   UMBRAL_BATERIA   = 20;    // %
+// Solo cambian el color del numero (no se muestran etiquetas)
+const float UMBRAL_OLIGURIA = 0.5;   // mL/kg/h -> rojo
+const float UMBRAL_POLIURIA = 3.0;   // mL/kg/h -> naranja
+const float UMBRAL_FIEBRE   = 38.0;  // C       -> rojo
+const int   UMBRAL_BATERIA  = 20;    // %       -> rojo
 
 // --------------------------------------------------------------- Demo
 #define MODO_DEMO 1                          // 0 = usar datos reales
-const unsigned long INTERVALO_PANTALLA_MS  = 1000;
-const unsigned long INTERVALO_TENDENCIA_MS = 5000;   // en uso real: 5-10 min
+const unsigned long INTERVALO_PANTALLA_MS = 1000;
 
 // --------------------------------------------------------------- Colores
-// rgb(r, g, b) esta definida en tipos_monitor.h
-const uint16_t C_FONDO       = rgb(17, 23, 30);
-const uint16_t C_CAJA        = rgb(13, 18, 24);
-const uint16_t C_BORDE       = rgb(40, 48, 58);
-const uint16_t C_TEXTO       = rgb(230, 237, 243);
-const uint16_t C_TENUE       = rgb(139, 148, 158);
-const uint16_t C_BARRA_FDO   = rgb(30, 37, 45);
-const uint16_t C_TEAL        = rgb(111, 211, 190);
-const uint16_t C_TEAL_OSC    = rgb(24, 46, 44);
-const uint16_t C_NARANJA     = rgb(232, 146, 74);
-const uint16_t C_NARANJA_OSC = rgb(52, 38, 30);
-const uint16_t C_ROJO        = rgb(235, 92, 82);
-const uint16_t C_ROJO_OSC    = rgb(58, 28, 28);
+const uint16_t C_FONDO   = rgb(17, 23, 30);
+const uint16_t C_CAJA    = rgb(13, 18, 24);
+const uint16_t C_BORDE   = rgb(40, 48, 58);
+const uint16_t C_TEXTO   = rgb(235, 240, 245);
+const uint16_t C_TENUE   = rgb(150, 158, 168);
+const uint16_t C_TEAL    = rgb(111, 211, 190);
+const uint16_t C_NARANJA = rgb(232, 146, 74);
+const uint16_t C_ROJO    = rgb(235, 92, 82);
 
-
+// --------------------------------------------------------------- Layout
+// Cajas: x, y, ancho, alto
+const int DIU_X = 16,  DIU_Y = 46,  DIU_W = 448, DIU_H = 104;
+const int VOL_X = 16,  VOL_Y = 158, VOL_W = 448, VOL_H = 74;
+const int TMP_X = 16,  TMP_Y = 240, TMP_W = 180, TMP_H = 74;
+const int COL_X = 206, COL_Y = 240, COL_W = 258, COL_H = 74;
 
 DatosMonitor datos;
 DatosMonitor previo;
 bool primeraVez = true;
-
-const int N_TEND = 30;
-float tendencia[N_TEND];
-int nTend = 0;
-bool tendenciaCambio = false;
 
 // ============================================================ Utilidades
 void fmtDecimal(float v, int dec, char *out, size_t n) {
@@ -110,255 +101,133 @@ Estado estadoDiuresis(float v) {
   return NORMAL;
 }
 
-uint16_t colorEstado(Estado e) {
-  if (e == OLIGURIA) return C_ROJO;
-  if (e == POLIURIA) return C_NARANJA;
-  return C_TEAL;
+uint16_t colorDiuresis(float v) {
+  switch (estadoDiuresis(v)) {
+    case OLIGURIA: return C_ROJO;
+    case POLIURIA: return C_NARANJA;
+    default:       return C_TEXTO;
+  }
 }
 
-uint16_t colorEstadoOsc(Estado e) {
-  if (e == OLIGURIA) return C_ROJO_OSC;
-  if (e == POLIURIA) return C_NARANJA_OSC;
-  return C_TEAL_OSC;
+void caja(int x, int y, int w, int h, const char *etiqueta, int yEtiqueta) {
+  tft->fillRoundRect(x, y, w, h, 10, C_CAJA);
+  tft->drawRoundRect(x, y, w, h, 10, C_BORDE);
+  texto(etiqueta, x + 16, yEtiqueta, &FreeMonoBold9pt7b, C_TENUE);
 }
 
 // ============================================================ Secciones
 
-void dibujarBarraLateral(Estado e) {
-  tft->fillRect(0, 0, 6, 320, colorEstado(e));
-}
-
-void dibujarEncabezado(const DatosMonitor &d) {
-  tft->fillRect(8, 0, 368, 62, C_FONDO);
-
-  // Badge de cama
-  int wb = anchoTexto(d.cama, &FreeMonoBold12pt7b) + 24;
-  tft->fillRoundRect(18, 12, wb, 36, 7, C_TEAL);
-  texto(d.cama, 30, 38, &FreeMonoBold12pt7b, C_FONDO);
-
-  // Nombre (recortado a 16 caracteres)
-  char nombre[18];
-  if (strlen(d.paciente) > 16) {
-    strncpy(nombre, d.paciente, 15);
-    nombre[15] = '.'; nombre[16] = '\0';
-  } else {
-    strcpy(nombre, d.paciente);
-  }
-  texto(nombre, 18 + wb + 16, 38, &FreeMonoBold12pt7b, C_TEXTO);
-
-  // Badge de modo (PILOTO)
-  tft->fillRect(380, 32, 100, 22, C_FONDO);
-  if (strlen(d.modo) > 0) {
-    int wm = anchoTexto(d.modo, &FreeMonoBold9pt7b) + 14;
-    tft->fillRoundRect(380, 32, wm, 21, 4, C_TEAL_OSC);
-    texto(d.modo, 387, 47, &FreeMonoBold9pt7b, C_TEAL);
-  }
-
-  tft->drawFastHLine(8, 62, 472, C_BORDE);
+void dibujarMarco() {
+  tft->fillScreen(C_FONDO);
+  caja(DIU_X, DIU_Y, DIU_W, DIU_H, "DIURESIS",    DIU_Y + 26);
+  caja(VOL_X, VOL_Y, VOL_W, VOL_H, "VOLUMEN",     VOL_Y + 22);
+  caja(TMP_X, TMP_Y, TMP_W, TMP_H, "TEMPERATURA", TMP_Y + 22);
+  caja(COL_X, COL_Y, COL_W, COL_H, "COLOR",       COL_Y + 22);
 }
 
 void dibujarBateria(int pct, bool cargando) {
-  const int x = 380, y = 9;
-  tft->fillRect(x, y, 100, 18, C_FONDO);
-
-  tft->drawRoundRect(x, y, 28, 16, 3, C_TENUE);
-  tft->fillRect(x + 28, y + 5, 3, 6, C_TENUE);
-  uint16_t c = (pct <= UMBRAL_BATERIA) ? C_ROJO : C_TEAL;
-  int w = map(constrain(pct, 0, 100), 0, 100, 0, 24);
-  tft->fillRect(x + 2, y + 2, w, 12, c);
-
-  if (cargando) {  // rayo
-    tft->fillTriangle(x + 16, y + 1, x + 9, y + 9, x + 15, y + 9, C_TEXTO);
-    tft->fillTriangle(x + 13, y + 7, x + 19, y + 7, x + 12, y + 15, C_TEXTO);
-  }
+  tft->fillRect(300, 6, 180, 34, C_FONDO);
 
   char buf[6];
   snprintf(buf, sizeof(buf), "%d%%", pct);
-  texto(buf, x + 38, y + 14, &FreeMonoBold9pt7b, C_TENUE);
+  uint16_t c = (pct <= UMBRAL_BATERIA) ? C_ROJO : C_TEXTO;
+  int wt = anchoTexto(buf, &FreeMonoBold12pt7b);
+  int xt = 464 - wt;
+  texto(buf, xt, 31, &FreeMonoBold12pt7b, c);
+
+  // Icono
+  const int w = 40, h = 20;
+  int x = xt - w - 14, y = 13;
+  tft->drawRoundRect(x, y, w, h, 4, C_TENUE);
+  tft->drawRoundRect(x + 1, y + 1, w - 2, h - 2, 3, C_TENUE);
+  tft->fillRect(x + w, y + 6, 4, 8, C_TENUE);
+  int relleno = map(constrain(pct, 0, 100), 0, 100, 0, w - 8);
+  tft->fillRect(x + 4, y + 4, relleno, h - 8, (pct <= UMBRAL_BATERIA) ? C_ROJO : C_TEAL);
+
+  if (cargando) {   // rayo
+    tft->fillTriangle(x + 23, y + 1, x + 13, y + 11, x + 21, y + 11, C_TEXTO);
+    tft->fillTriangle(x + 19, y + 9, x + 27, y + 9, x + 17, y + 19, C_TEXTO);
+  }
 }
 
-void dibujarDiuresis(float v, Estado e) {
-  tft->fillRect(8, 66, 314, 86, C_FONDO);
+void dibujarDiuresis(float v) {
+  tft->fillRect(DIU_X + 4, DIU_Y + 34, DIU_W - 8, DIU_H - 40, C_CAJA);
 
   char buf[10];
   fmtDecimal(v, (v < 10) ? 2 : 1, buf, sizeof(buf));
-  texto(buf, 20, 134, &FreeMonoBold36pt7b, colorEstado(e));
-
-  int xu = 20 + anchoTexto(buf, &FreeMonoBold36pt7b) + 14;
-  texto("mL/kg/h", xu, 134, &FreeMono12pt7b, C_TENUE);
-}
-
-void dibujarTendencia(Estado e) {
-  const int X = 330, Y = 78, W = 134, H = 58;
-  tft->fillRect(X - 4, Y - 6, W + 10, H + 10, C_FONDO);
-  if (nTend < 2) return;
-
-  float vmax = UMBRAL_OLIGURIA * 2;
-  for (int i = 0; i < nTend; i++) if (tendencia[i] > vmax) vmax = tendencia[i];
-  vmax *= 1.15;
-
-  auto yDe = [&](float v) { return Y + H - (int)(v / vmax * H); };
-  auto xDe = [&](int i)   { return X + (i * W) / (nTend - 1); };
-
-  // Relleno bajo la curva
-  uint16_t cRel = colorEstadoOsc(e);
-  for (int i = 0; i < nTend - 1; i++) {
-    int x0 = xDe(i), x1 = xDe(i + 1);
-    int y0 = yDe(tendencia[i]), y1 = yDe(tendencia[i + 1]);
-    for (int px = x0; px <= x1; px++) {
-      int py = (x1 == x0) ? y0 : y0 + (y1 - y0) * (px - x0) / (x1 - x0);
-      tft->drawFastVLine(px, py, Y + H - py, cRel);
-    }
-  }
-
-  // Umbral de oliguria (punteado)
-  int yu = yDe(UMBRAL_OLIGURIA);
-  for (int px = X; px < X + W; px += 8) tft->drawFastHLine(px, yu, 4, C_ROJO);
-
-  // Curva
-  uint16_t c = colorEstado(e);
-  for (int i = 0; i < nTend - 1; i++) {
-    int x0 = xDe(i), x1 = xDe(i + 1);
-    int y0 = yDe(tendencia[i]), y1 = yDe(tendencia[i + 1]);
-    for (int k = -1; k <= 1; k++) tft->drawLine(x0, y0 + k, x1, y1 + k, c);
-  }
-  tft->fillCircle(xDe(nTend - 1), yDe(tendencia[nTend - 1]), 4, c);
+  int yb = DIU_Y + 90;
+  texto(buf, DIU_X + 16, yb, &FreeMonoBold36pt7b, colorDiuresis(v));
+  int xu = DIU_X + 16 + anchoTexto(buf, &FreeMonoBold36pt7b) + 16;
+  texto("mL/kg/h", xu, yb, &FreeMono12pt7b, C_TENUE);
 }
 
 void dibujarTemperatura(float t) {
-  const int x = 16, y = 160, w = 178, h = 70;
-  tft->fillRoundRect(x, y, w, h, 9, C_CAJA);
-  tft->drawRoundRect(x, y, w, h, 9, C_BORDE);
+  tft->fillRect(TMP_X + 4, TMP_Y + 28, TMP_W - 8, TMP_H - 32, C_CAJA);
 
   char buf[8];
   fmtDecimal(t, 1, buf, sizeof(buf));
-  uint16_t c = (t >= UMBRAL_FIEBRE) ? C_ROJO : C_TEXTO;
-  texto(buf, x + 16, y + 50, &FreeMonoBold24pt7b, c);
-
-  int xg = x + 16 + anchoTexto(buf, &FreeMonoBold24pt7b) + 10;
-  tft->drawCircle(xg, y + 24, 3, C_TENUE);   // simbolo de grado
-  texto("C", xg + 5, y + 40, &FreeMono12pt7b, C_TENUE);
+  int yb = TMP_Y + 62;
+  texto(buf, TMP_X + 16, yb, &FreeMonoBold24pt7b, (t >= UMBRAL_FIEBRE) ? C_ROJO : C_TEXTO);
+  int xg = TMP_X + 16 + anchoTexto(buf, &FreeMonoBold24pt7b) + 10;
+  tft->drawCircle(xg, yb - 26, 3, C_TENUE);   // simbolo de grado
+  tft->drawCircle(xg, yb - 26, 2, C_TENUE);
+  texto("C", xg + 6, yb, &FreeMono12pt7b, C_TENUE);
 }
 
-void dibujarColor(const char *nombre, uint8_t r, uint8_t g, uint8_t b) {
-  const int x = 204, y = 160, w = 264, h = 70;
-  tft->fillRoundRect(x, y, w, h, 9, C_CAJA);
-  tft->drawRoundRect(x, y, w, h, 9, C_BORDE);
+// Muestra "actual / total mL", por ejemplo "1.244 / 2.000 mL"
+void dibujarVolumen(int v, int cap) {
+  tft->fillRect(VOL_X + 4, VOL_Y + 28, VOL_W - 8, VOL_H - 32, C_CAJA);
 
-  char buf[14];
-  strncpy(buf, nombre, 13); buf[13] = '\0';
-  texto(buf, x + 18, y + 42, &FreeMonoBold12pt7b, C_TEXTO);
+  char sv[10], sc[12];
+  fmtMiles(v, sv, sizeof(sv));
+  sc[0] = '/'; sc[1] = ' ';
+  fmtMiles(cap, sc + 2, sizeof(sc) - 2);
 
-  int xs = x + w - 18 - 26;
-  tft->fillRoundRect(xs, y + 22, 26, 26, 5, rgb(r, g, b));
-  tft->drawRoundRect(xs, y + 22, 26, 26, 5, C_BORDE);
+  int yb = VOL_Y + 62;
+  int x = VOL_X + 16;
+  texto(sv, x, yb, &FreeMonoBold24pt7b, C_TEXTO);               // actual
+  x += anchoTexto(sv, &FreeMonoBold24pt7b) + 16;
+  texto(sc, x, yb, &FreeMonoBold24pt7b, C_TENUE);               // total
+  x += anchoTexto(sc, &FreeMonoBold24pt7b) + 12;
+  texto("mL", x, yb, &FreeMono12pt7b, C_TENUE);
 }
 
-void dibujarBolsa(int vol, int cap) {
-  tft->fillRect(8, 238, 472, 46, C_FONDO);
-  texto("Bolsa", 18, 258, &FreeMono12pt7b, C_TENUE);
+// El tamano de letra se ajusta solo para que el nombre entre en la caja
+void dibujarColor(const char *nombre) {
+  tft->fillRect(COL_X + 4, COL_Y + 28, COL_W - 8, COL_H - 32, C_CAJA);
 
-  char sv[10], sc[10], buf[32];
-  fmtMiles(vol, sv, sizeof(sv));
-  fmtMiles(cap, sc, sizeof(sc));
-  snprintf(buf, sizeof(buf), "%s / %s mL", sv, sc);
-  texto(buf, 466 - anchoTexto(buf, &FreeMono12pt7b), 258, &FreeMono12pt7b, C_TENUE);
+  char buf[16];
+  strncpy(buf, nombre, 15); buf[15] = '\0';
 
-  const int bx = 18, by = 268, bw = 448, bh = 10;
-  tft->fillRoundRect(bx, by, bw, bh, 5, C_BARRA_FDO);
-  int pct = (cap > 0) ? constrain(vol * 100 / cap, 0, 100) : 0;
-  int wl = bw * pct / 100;
-  if (wl > 0) {
-    uint16_t c = (pct >= UMBRAL_BOLSA_PCT) ? C_ROJO : C_TEAL;
-    tft->fillRoundRect(bx, by, max(wl, bh), bh, 5, c);
-  }
-}
-
-// Etiquetas de estado al pie (tipo "Poliuria")
-int dibujarEtiqueta(int x, const char *s, uint16_t cTexto, uint16_t cFondo) {
-  int w = anchoTexto(s, &FreeMonoBold12pt7b) + 24;
-  if (x + w > 468) return x;   // no entra, se omite
-  tft->fillRoundRect(x, 287, w, 30, 6, cFondo);
-  texto(s, x + 12, 308, &FreeMonoBold12pt7b, cTexto);
-  return x + w + 10;
-}
-
-uint8_t mascaraAlertas(const DatosMonitor &d) {
-  uint8_t m = estadoDiuresis(d.diuresis);   // bits 0-1
-  if (d.temperatura >= UMBRAL_FIEBRE) m |= 1 << 2;
-  if (d.capacidadBolsa > 0 &&
-      d.volumenBolsa * 100 / d.capacidadBolsa >= UMBRAL_BOLSA_PCT) m |= 1 << 3;
-  if (d.bateria <= UMBRAL_BATERIA) m |= 1 << 4;
-  return m;
-}
-
-void dibujarEtiquetas(const DatosMonitor &d) {
-  tft->fillRect(8, 286, 472, 34, C_FONDO);
-  int x = 18;
-  switch (estadoDiuresis(d.diuresis)) {
-    case OLIGURIA: x = dibujarEtiqueta(x, "Oliguria", C_ROJO, C_ROJO_OSC); break;
-    case POLIURIA: x = dibujarEtiqueta(x, "Poliuria", C_NARANJA, C_NARANJA_OSC); break;
-    default:       x = dibujarEtiqueta(x, "Normal", C_TEAL, C_TEAL_OSC); break;
-  }
-  uint8_t m = mascaraAlertas(d);
-  if (m & (1 << 2)) x = dibujarEtiqueta(x, "Fiebre", C_ROJO, C_ROJO_OSC);
-  if (m & (1 << 3)) x = dibujarEtiqueta(x, "Bolsa llena", C_ROJO, C_ROJO_OSC);
-  if (m & (1 << 4)) x = dibujarEtiqueta(x, "Bateria baja", C_NARANJA, C_NARANJA_OSC);
+  const int disponible = COL_W - 32;
+  const GFXfont *f = &FreeMonoBold24pt7b;
+  if (anchoTexto(buf, f) > disponible) f = &FreeMonoBold18pt7b;
+  if (anchoTexto(buf, f) > disponible) f = &FreeMonoBold12pt7b;
+  texto(buf, COL_X + 16, COL_Y + 60, f, C_TEXTO);
 }
 
 // ============================================================ API publica
 
-void agregarPuntoTendencia(float v) {
-  if (nTend < N_TEND) {
-    tendencia[nTend++] = v;
-  } else {
-    memmove(tendencia, tendencia + 1, (N_TEND - 1) * sizeof(float));
-    tendencia[N_TEND - 1] = v;
-  }
-  tendenciaCambio = true;
-}
-
 void actualizarPantalla(const DatosMonitor &d) {
-  Estado e  = estadoDiuresis(d.diuresis);
-  Estado eP = estadoDiuresis(previo.diuresis);
-  bool cambioEstado = primeraVez || e != eP;
-
-  char a[10], b[10];
-  fmtDecimal(d.diuresis, 2, a, sizeof(a));
-  fmtDecimal(previo.diuresis, 2, b, sizeof(b));
-  bool cambioDiuresis = primeraVez || strcmp(a, b) != 0;
-
-  if (primeraVez) tft->fillScreen(C_FONDO);
-
-  if (cambioEstado) dibujarBarraLateral(e);
-
-  if (primeraVez || strcmp(d.cama, previo.cama) || strcmp(d.paciente, previo.paciente) ||
-      strcmp(d.modo, previo.modo))
-    dibujarEncabezado(d);
+  if (primeraVez) dibujarMarco();
 
   if (primeraVez || d.bateria != previo.bateria || d.cargando != previo.cargando)
     dibujarBateria(d.bateria, d.cargando);
 
-  if (cambioDiuresis || cambioEstado) dibujarDiuresis(d.diuresis, e);
-
-  if (tendenciaCambio || cambioEstado) {
-    dibujarTendencia(e);
-    tendenciaCambio = false;
-  }
+  char a[10], b[10];
+  fmtDecimal(d.diuresis, 2, a, sizeof(a));
+  fmtDecimal(previo.diuresis, 2, b, sizeof(b));
+  if (primeraVez || strcmp(a, b) != 0)
+    dibujarDiuresis(d.diuresis);
 
   if (primeraVez || fabsf(d.temperatura - previo.temperatura) >= 0.05f)
     dibujarTemperatura(d.temperatura);
 
-  if (primeraVez || strcmp(d.colorNombre, previo.colorNombre) ||
-      d.colR != previo.colR || d.colG != previo.colG || d.colB != previo.colB)
-    dibujarColor(d.colorNombre, d.colR, d.colG, d.colB);
+  if (primeraVez || d.volumen != previo.volumen || d.capacidad != previo.capacidad)
+    dibujarVolumen(d.volumen, d.capacidad);
 
-  if (primeraVez || d.volumenBolsa != previo.volumenBolsa ||
-      d.capacidadBolsa != previo.capacidadBolsa)
-    dibujarBolsa(d.volumenBolsa, d.capacidadBolsa);
-
-  if (primeraVez || mascaraAlertas(d) != mascaraAlertas(previo))
-    dibujarEtiquetas(d);
+  if (primeraVez || strcmp(d.colorNombre, previo.colorNombre) != 0)
+    dibujarColor(d.colorNombre);
 
   previo = d;
   primeraVez = false;
@@ -374,24 +243,19 @@ void setup() {
   }
 
   // Valores iniciales (luego se reemplazan con las mediciones)
-  strcpy(datos.cama, "UTI-04");
-  strcpy(datos.paciente, "Quiroga, Beatriz");
-  strcpy(datos.modo, "PILOTO");
   datos.bateria = 89;
   datos.cargando = true;
-  datos.diuresis = 4.97;
+  datos.diuresis = 1.25;
   datos.temperatura = 36.8;
+  datos.volumen = 1244;
+  datos.capacidad = 2000;
   strcpy(datos.colorNombre, "Transparente");
-  datos.colR = 245; datos.colG = 243; datos.colB = 230;
-  datos.volumenBolsa = 1244;
-  datos.capacidadBolsa = 2000;
 
-  agregarPuntoTendencia(datos.diuresis);
   actualizarPantalla(datos);
 }
 
 void loop() {
-  static unsigned long tPantalla = 0, tTendencia = 0;
+  static unsigned long tPantalla = 0;
   unsigned long ahora = millis();
 
   if (ahora - tPantalla >= INTERVALO_PANTALLA_MS) {
@@ -399,24 +263,18 @@ void loop() {
 
 #if MODO_DEMO
     // Valores simulados para probar la pantalla
-    datos.diuresis     = constrain(datos.diuresis + random(-30, 31) / 100.0, 0.1, 6.0);
-    datos.temperatura  = constrain(datos.temperatura + random(-2, 3) / 10.0, 36.0, 39.0);
-    datos.volumenBolsa = min(datos.volumenBolsa + (int)random(0, 4), datos.capacidadBolsa);
+    datos.diuresis    = constrain(datos.diuresis + random(-30, 31) / 100.0, 0.1, 6.0);
+    datos.temperatura = constrain(datos.temperatura + random(-2, 3) / 10.0, 36.0, 39.0);
+    datos.volumen     = min(datos.volumen + (int)random(0, 4), datos.capacidad);
 #else
     // Aca cargar las mediciones reales, por ejemplo:
-    // datos.diuresis     = calcularDiuresisHoraria() / pesoPaciente;
-    // datos.temperatura  = leerTemperaturaNTC();
-    // datos.volumenBolsa = leerVolumenCeldaCarga();
-    // datos.bateria      = leerBateriaPct();
-    // clasificarColor(datos.colorNombre, &datos.colR, &datos.colG, &datos.colB);
+    // datos.diuresis    = calcularDiuresisHoraria() / pesoPaciente;
+    // datos.temperatura = leerTemperaturaNTC();
+    // datos.volumen     = leerVolumenCeldaCarga();
+    // datos.bateria     = leerBateriaPct();
+    // strcpy(datos.colorNombre, clasificarColor());
 #endif
 
-    actualizarPantalla(datos);
-  }
-
-  if (ahora - tTendencia >= INTERVALO_TENDENCIA_MS) {
-    tTendencia = ahora;
-    agregarPuntoTendencia(datos.diuresis);
     actualizarPantalla(datos);
   }
 }
