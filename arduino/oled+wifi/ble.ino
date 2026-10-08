@@ -63,9 +63,14 @@ void enviarMuestraBLE(const DatosMonitor &d) {
   if (isnan(d.temperatura)) strcpy(temp, "null");
   else snprintf(temp, sizeof(temp), "%.1f", d.temperatura);
 
+  // Si todavia no hay lectura de color (sensor no conectado), no se manda
+  // "rgb": un [0,0,0] la web lo clasificaria como "Marron oscuro".
+  char color[24] = "";
+  if (d.r || d.g || d.b) snprintf(color, sizeof(color), ",\"rgb\":[%d,%d,%d]", d.r, d.g, d.b);
+
   snprintf(json, sizeof(json),
-           "{\"serie\":\"%s\",\"vol\":%d,\"temp\":%s,\"rgb\":[%d,%d,%d],\"bat\":%d}\n",
-           SERIE, d.volumen, temp, d.r, d.g, d.b, d.bateria);
+           "{\"serie\":\"%s\",\"vol\":%d,\"temp\":%s%s,\"bat\":%d}\n",
+           SERIE, d.volumen, temp, color, d.bateria);
 
   Serial.print(json);                 // tambien por USB, para ver que se manda
   if (!clienteConectado || !caracteristica) return;
