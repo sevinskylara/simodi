@@ -60,7 +60,7 @@ var Almacen = (function () {
         id: d.id, serie: d.serie, tipo: d.tipo, escenario: d.escenario,
         inicioEscenario: d.inicioEscenario, estado: d.estado, bat: d.bat, rssi: d.rssi,
         volTotalMl: d.volTotalMl, volBaseMl: d.volBaseMl, tara: d.tara,
-        ultimoDato: d.ultimoDato, vaciados: d.vaciados,
+        ultimoDato: d.ultimoDato, vaciados: d.vaciados, pacienteActual: d.pacienteActual,
         muestras: diezmar(d.muestras || []),
         eventos: (d.eventos || []).slice(-120)
       };

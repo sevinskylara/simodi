@@ -173,7 +173,35 @@ var Modelo = (function () {
     var d = dispositivoId ? E.dispositivos[dispositivoId] : null;
     registrarEvento(camaId, 'asignacion',
       p ? ('Vinculado ' + p.nombre + (d ? ' ↔ ' + d.serie : '')) : 'Cama liberada', null, operador);
+    if (d) historialParaPaciente(d, pacienteId, camaId, operador);
     sincronizarCama(cama);
+  }
+
+  /* Cada paciente arranca con el historial del equipo vacío: así no se le
+     adjudica orina de otro paciente ni de pruebas anteriores. Solo para
+     equipos reales (los piloto traen su historial simulado). El traslado
+     no reinicia nada porque el paciente sigue siendo el mismo. */
+  function historialParaPaciente(d, pacienteId, camaId, operador) {
+    if (!d || d.tipo !== 'real' || !pacienteId) return;
+    if (d.pacienteActual === pacienteId) return;
+    var habiaDatos = d.muestras && d.muestras.length;
+    reiniciarDispositivo(d.id);
+    d.pacienteActual = pacienteId;
+    if (habiaDatos) {
+      registrarEvento(camaId, 'sistema',
+        'Historial de ' + d.serie + ' reiniciado para el nuevo paciente', null, operador);
+    }
+  }
+
+  /* Botón "Reiniciar historial del dispositivo" de la ficha de la cama. */
+  function reiniciarHistorial(camaId, operador) {
+    var cama = buscarCama(camaId);
+    if (!cama || !cama.dispositivoId) return false;
+    var d = E.dispositivos[cama.dispositivoId];
+    if (!d) return false;
+    reiniciarDispositivo(d.id);
+    registrarEvento(camaId, 'sistema', 'Historial de ' + d.serie + ' reiniciado manualmente', null, operador);
+    return true;
   }
 
   /* Mueve al paciente (con su dispositivo, historial y registros) de una
@@ -316,6 +344,11 @@ var Modelo = (function () {
     cama.pacienteId = data.pacienteId || null;
     cama.dispositivoId = data.dispositivoId || null;
     cama.serieInventario = data.serieInventario || null;
+    // Si en otra computadora se asignó un paciente nuevo a este equipo,
+    // acá también se arranca de cero.
+    if (cama.dispositivoId && E.dispositivos[cama.dispositivoId]) {
+      historialParaPaciente(E.dispositivos[cama.dispositivoId], cama.pacienteId, cama.id, null);
+    }
   }
 
   function aplicarEventoRemoto(ev) {
@@ -532,6 +565,7 @@ var Modelo = (function () {
     trasladarPaciente: trasladarPaciente,
     altaPaciente: altaPaciente,
     reiniciarDispositivo: reiniciarDispositivo,
+    reiniciarHistorial: reiniciarHistorial,
     ingresarMuestra: ingresarMuestra,
     registrarEvento: registrarEvento,
     metricas: metricas,

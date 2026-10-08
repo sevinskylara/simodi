@@ -1003,9 +1003,26 @@ var UI = (function () {
 
       '<div class="acciones">' +
         '<button class="btn secundario chico" id="btnGuardarTara">Guardar tara</button>' +
+      '</div>' +
+
+      '<div class="sep"></div>' +
+      '<div class="subtitulo">Historial</div>' +
+      '<p class="nota">Borra las mediciones guardadas de este equipo y la diuresis vuelve a calcularse ' +
+        'desde cero (necesita 10 min de datos). Usalo después de pruebas o si se colgó una bolsa con orina.</p>' +
+      '<div class="acciones" style="justify-content:flex-start">' +
+        '<button class="btn peligro chico" id="btnReiniciarHistorial">Reiniciar historial del dispositivo</button>' +
       '</div>';
 
     U.$('#detDispositivo').innerHTML = html;
+
+    U.$('#btnReiniciarHistorial').onclick = function () {
+      if (!confirm('¿Borrar el historial de ' + d.serie + '? Se pierden las mediciones guardadas de este equipo.')) return;
+      if (Modelo.reiniciarHistorial(camaAbierta, Operador.actual())) {
+        Acciones.guardar();
+        pintarTodo();
+        toast('Historial reiniciado');
+      }
+    };
 
     if (d.tipo === 'sim') {
       var sel = U.$('#selEscenarioDet');
