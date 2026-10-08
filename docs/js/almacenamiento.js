@@ -22,8 +22,10 @@ var Almacen = (function () {
       Math.round(m.pesoG * 10) / 10,
       Math.round(m.volMl * 10) / 10,
       Math.round(m.volTotalMl * 10) / 10,
-      Math.round(m.tempC * 100) / 100,
-      Math.round(m.rgb[0]), Math.round(m.rgb[1]), Math.round(m.rgb[2]),
+      m.tempC === null || m.tempC === undefined ? null : Math.round(m.tempC * 100) / 100,
+      m.rgb ? Math.round(m.rgb[0]) : null,
+      m.rgb ? Math.round(m.rgb[1]) : null,
+      m.rgb ? Math.round(m.rgb[2]) : null,
       Math.round(m.bat), Math.round(m.rssi),
       m.origen === 'buffer' ? 1 : 0
     ];
@@ -31,7 +33,7 @@ var Almacen = (function () {
   function expandir(a) {
     return {
       t: a[0] * 1000, pesoG: a[1], volMl: a[2], volTotalMl: a[3], tempC: a[4],
-      rgb: [a[5], a[6], a[7]], bat: a[8], rssi: a[9],
+      rgb: a[5] === null ? null : [a[5], a[6], a[7]], bat: a[8], rssi: a[9],
       origen: a[10] === 1 ? 'buffer' : 'enlace'
     };
   }

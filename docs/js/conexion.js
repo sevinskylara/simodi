@@ -61,7 +61,8 @@ var Conexion = (function () {
     var rgb = obj.rgb;
     if (!rgb && (obj.r !== undefined)) rgb = [obj.r, obj.g, obj.b];
     if (!rgb && obj.color && obj.color.length === 3) rgb = obj.color;
-    if (!rgb) rgb = [240, 224, 90];
+    // Sin sensor de color el equipo no manda "rgb": queda null y se muestra "—".
+    if (!rgb) rgb = null;
 
     var t = primero(obj, ['t', 'ts', 'tiempo', 'time']);
     if (t === null) t = Date.now();
@@ -84,8 +85,10 @@ var Conexion = (function () {
       serie: obj.serie || obj.id || obj.dev || st.serieVista || 'URO-REAL',
       t: t,
       pesoG: Number(peso),
-      tempC: Number(primero(obj, ['temp', 'temp_c', 'tempC', 'temperatura']) || 36.8),
-      rgb: rgb.map(Number),
+      // Sin sensor de temperatura llega null: se muestra "—" en vez de un valor inventado.
+      tempC: primero(obj, ['temp', 'temp_c', 'tempC', 'temperatura']) === null
+        ? null : Number(primero(obj, ['temp', 'temp_c', 'tempC', 'temperatura'])),
+      rgb: rgb ? rgb.map(Number) : null,
       bat: Number(primero(obj, ['bat', 'bateria', 'battery']) === null ? 100 : primero(obj, ['bat', 'bateria', 'battery'])),
       rssi: Number(primero(obj, ['rssi', 'senal']) === null ? -60 : primero(obj, ['rssi', 'senal'])),
       fuente: fuente,

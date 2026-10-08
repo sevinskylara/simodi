@@ -873,7 +873,7 @@ var UI = (function () {
 
     Graf.serie(
       U.$('#gTemp'),
-      ms.map(function (x) {
+      ms.filter(function (x) { return x.tempC !== null && x.tempC !== undefined; }).map(function (x) {
         return {
           t: x.t,
           v: x.tempC,
@@ -893,7 +893,7 @@ var UI = (function () {
       }
     );
 
-    Graf.tiraColor(U.$('#gColor'), ms);
+    Graf.tiraColor(U.$('#gColor'), ms.filter(function (x) { return x.rgb; }));
 
     U.$('#legColor').textContent =
       m.color

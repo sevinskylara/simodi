@@ -96,7 +96,8 @@ var InformePDF = (function () {
       var x = muestras[i];
       if (x.t < t0) continue;
       if (x.t >= t1) break;
-      suma += x.tempC; n++; ultima = x;
+      if (x.tempC !== null && x.tempC !== undefined) { suma += x.tempC; n++; }
+      if (x.rgb) ultima = x;
     }
     return {
       temp: n ? suma / n : null,

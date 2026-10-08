@@ -250,7 +250,7 @@ var Modelo = (function () {
       volMl: volMl,
       volTotalMl: d.volTotalMl,
       tempC: lectura.tempC,
-      rgb: lectura.rgb || [240, 224, 90],
+      rgb: lectura.rgb === undefined ? [240, 224, 90] : lectura.rgb,   // null = sin sensor de color
       bat: lectura.bat === undefined ? d.bat : lectura.bat,
       rssi: lectura.rssi === undefined ? d.rssi : lectura.rssi,
       origen: lectura.origen || 'enlace'
@@ -476,7 +476,7 @@ var Modelo = (function () {
       buckets: buckets,
       tempC: ultima ? ultima.tempC : null,
       tempMax6h: null,
-      color: ultima ? U.clasificarColor(ultima.rgb) : null,
+      color: (ultima && ultima.rgb) ? U.clasificarColor(ultima.rgb) : null,
       bat: d.bat, rssi: d.rssi,
       minSinFlujo: minutosSinFlujo(d),
       horasOliguria: (pesoKg && buckets.length) ? horasBajoUmbral(buckets, pesoKg, CFG.umbrales.oliguria) : 0,
@@ -488,7 +488,8 @@ var Modelo = (function () {
     // Temperatura máxima y muestras reconstruidas en las últimas 6 h
     var t6 = ahora - 6 * 3600000, i;
     for (i = ms.length - 1; i >= 0 && ms[i].t >= t6; i--) {
-      if (m.tempMax6h === null || ms[i].tempC > m.tempMax6h) m.tempMax6h = ms[i].tempC;
+      if (ms[i].tempC !== null && ms[i].tempC !== undefined &&
+          (m.tempMax6h === null || ms[i].tempC > m.tempMax6h)) m.tempMax6h = ms[i].tempC;
       if (ms[i].origen === 'buffer') m.muestrasBuffer++;
     }
 
