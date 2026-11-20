@@ -428,6 +428,22 @@ var Modelo = (function () {
     }
   }
 
+  /* Las camas de la sala son las de la base compartida: todas las
+     computadoras tienen que ver las mismas. Las camas que solo existen en
+     este navegador (por ejemplo, las de la sala de ejemplo) se sacan.
+     Devuelve 'subir' si la base todavía no tiene camas: en ese caso las de
+     este navegador pasan a ser las de la sala. */
+  function sincronizarCamasConNube(mapa, desdeCache) {
+    var ids = Object.keys(mapa || {});
+    if (!ids.length) return desdeCache ? 'esperar' : 'subir';
+    E.camas = E.camas.filter(function (c) { return !!mapa[c.id]; });
+    ids.forEach(function (id) { aplicarCamaRemota(mapa[id]); });
+    E.camas.sort(function (a, b) {
+      return String(a.etiqueta).localeCompare(String(b.etiqueta), 'es', { numeric: true });
+    });
+    return 'ok';
+  }
+
   function aplicarEventoRemoto(ev) {
     if (E.eventos.some(function (e) { return e.id === ev.id; })) return;
     E.eventos.push(ev);
@@ -657,6 +673,7 @@ var Modelo = (function () {
     camasVisibles: camasVisibles,
     aplicarPacienteRemoto: aplicarPacienteRemoto,
     aplicarCamaRemota: aplicarCamaRemota,
+    sincronizarCamasConNube: sincronizarCamasConNube,
     aplicarEventoRemoto: aplicarEventoRemoto
   };
 })();

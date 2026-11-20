@@ -82,7 +82,7 @@ var Nube = (function () {
         var d = c.doc.data(); d.id = c.doc.id; cacheCamas[d.id] = d;
       });
       aplicandoRemoto = true;
-      handlers.camas(cacheCamas, eliminadas);
+      handlers.camas(cacheCamas, eliminadas, { desdeCache: !!(snap.metadata && snap.metadata.fromCache) });
       aplicandoRemoto = false;
     }, function (err) { avisarEstado('error', err.message); });
 

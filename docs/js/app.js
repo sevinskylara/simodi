@@ -273,16 +273,19 @@ function iniciarSimodi() {
       },
 
 
-      camas: function (mapa, eliminadas) {
+      camas: function (mapa, eliminadas, meta) {
 
-        (eliminadas || []).forEach(function (id) {
-          Modelo.eliminarCama(id);
-        });
+        // Todas las computadoras muestran exactamente las camas de la base.
+        var r = Modelo.sincronizarCamasConNube(mapa, meta && meta.desdeCache);
 
-        Object.keys(mapa).forEach(function (id) {
-          Modelo.aplicarCamaRemota(mapa[id]);
-        });
+        if (r === 'subir') {
+          // La base no tiene camas todavía: se suben las de este navegador.
+          setTimeout(function () {
+            Modelo.estado.camas.forEach(function (c) { Nube.guardarCama(c); });
+          }, 0);
+        }
 
+        Acciones.guardar();
         UI.pintarTodo();
       },
 

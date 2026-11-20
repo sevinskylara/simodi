@@ -183,6 +183,9 @@ var UI = (function () {
     var d = m.dispositivo;
     var bat = d.bat;
 
+    // Equipo real: igual que la pantalla del ESP32, sin porcentaje; solo
+    // "BAT BAJA" cuando el firmware manda la alarma BATERIA.
+    var batBajaEquipo = batBajaReal(d);
     var claseBat = d.sinBateria ? '' :
       bat <= CFG.umbrales.bateriaCritica
         ? 'critica'
@@ -211,7 +214,14 @@ var UI = (function () {
           '<span class="badge ' + (d.tipo === 'sim' ? 'sim' : 'real') + '">' +
             (d.tipo === 'sim' ? 'PILOTO' : 'REAL') +
           '</span>' +
-          (d.sinBateria
+          (d.tipo === 'real' && !d.sinBateria
+            ? (batBajaEquipo
+                ? '<span class="bateria critica" title="El equipo informa batería baja: conectar a la red">' +
+                    '<span class="bat-cuerpo"><span class="bat-relleno" style="width:10%"></span></span>' +
+                    'BAT BAJA' +
+                  '</span>'
+                : '')
+            : d.sinBateria
             ? '<span class="bateria" title="Sin batería: equipo enchufado a la red' +
                 (conectado ? ' · dispositivo conectado' : ' · dispositivo sin señal') + '">' +
                 '<span class="bat-cuerpo"><span class="bat-rayo">' + SVG_RAYO + '</span></span>' +
@@ -289,7 +299,7 @@ var UI = (function () {
   function claseTempMini(t) {
     if (t === null) return '';
     if (t >= CFG.umbrales.tempFebrilAlta) return ' alerta';
-    if (t >= CFG.umbrales.tempFebril || t <= CFG.umbrales.tempHipotermia) return ' aviso';
+    if (t >= CFG.umbrales.tempFebril) return ' aviso';
     return '';
   }
 
@@ -807,6 +817,11 @@ var UI = (function () {
   }
   function fallaColor(m) { return fallaEquipo(m, 'COLOR'); }
 
+  /* El firmware manda "alarmas":["BATERIA"] cuando la batería está baja */
+  function batBajaReal(d) {
+    return !!(d && d.equipo && d.equipo.alarmas && d.equipo.alarmas.indexOf('BATERIA') >= 0);
+  }
+
   function claseTasa(v) {
     if (v === null || v === undefined) return '';
     if (v < CFG.umbrales.anuria) return 'critico';
@@ -817,7 +832,7 @@ var UI = (function () {
 
   function claseTemp(t) {
     if (t === null) return '';
-    if (t >= CFG.umbrales.tempFebrilAlta || t <= CFG.umbrales.tempHipotermia) return 'critico';
+    if (t >= CFG.umbrales.tempFebrilAlta) return 'critico';
     if (t >= CFG.umbrales.tempFebril) return 'aviso';
     return 'ok';
   }
@@ -961,9 +976,15 @@ var UI = (function () {
       '<div class="fila-3">' +
         resVal(
           'Batería',
-          d.sinBateria ? 'Sin batería' : Math.round(d.bat) + ' <small>%</small>',
-          d.sinBateria ? 'no hay batería conectada' : duracionBateria(d),
-          d.sinBateria ? '' : (d.bat <= CFG.umbrales.bateriaBaja ? 'critico' : 'ok')
+          d.sinBateria ? 'Sin batería'
+            : d.tipo === 'real' ? (batBajaReal(d) ? 'Baja' : 'OK')
+            : Math.round(d.bat) + ' <small>%</small>',
+          d.sinBateria ? 'no hay batería conectada'
+            : d.tipo === 'real' ? (batBajaReal(d) ? 'conectar a la red' : 'el equipo avisa cuando está baja')
+            : duracionBateria(d),
+          d.sinBateria ? ''
+            : d.tipo === 'real' ? (batBajaReal(d) ? 'critico' : 'ok')
+            : (d.bat <= CFG.umbrales.bateriaBaja ? 'critico' : 'ok')
         ) +
         resVal(
           'Fuente',

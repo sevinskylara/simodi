@@ -66,6 +66,10 @@ var Alertas = (function () {
 
     if (m.sinBateria) {
       /* sin batería conectada: el equipo funciona enchufado, no hay alerta */
+    } else if (d.tipo === 'real') {
+      /* igual que el firmware: solo avisa cuando manda la alarma BATERIA */
+      if (eq.alarmas && eq.alarmas.indexOf('BATERIA') >= 0)
+        a('bateria', 'alta', 'Batería baja', d.serie + ': el equipo informa batería baja. Conectar a la red.');
     } else if (m.bat <= U_.bateriaCritica) {
       a('bateria', 'alta', 'Batería crítica', d.serie + ' al ' + Math.round(m.bat) + ' %. Conectar a la red.');
     } else if (m.bat <= U_.bateriaBaja) {
@@ -82,14 +86,21 @@ var Alertas = (function () {
         'Colector al ' + Math.round(m.llenado * 100) + ' %. Programar el vaciado.');
     }
 
-    /* ---- Temperatura ---- */
-    if (m.tempC !== null) {
+    /* ---- Temperatura ----
+       Igual que el firmware: solo hay alarma de FIEBRE (no de hipotermia).
+       Con el equipo real se usa la alarma que manda el ESP32 ("FIEBRE":
+       > 38 °C en 5 lecturas seguidas), así la central y la luz roja del
+       equipo coinciden. En las camas piloto se usa el umbral de config. */
+    if (d.tipo === 'real') {
+      if (eq.alarmas && eq.alarmas.indexOf('FIEBRE') >= 0) {
+        a('temp', 'alta', 'Fiebre',
+          (m.tempC !== null ? U.num(m.tempC, 1) + ' °C medidos en la orina. ' : '') + 'Alarma informada por el equipo.');
+      }
+    } else if (m.tempC !== null) {
       if (m.tempC >= U_.tempFebrilAlta) {
         a('temp', 'critica', 'Hipertermia', U.num(m.tempC, 1) + ' °C medidos en la orina.');
       } else if (m.tempC >= U_.tempFebril) {
         a('temp', 'alta', 'Fiebre', U.num(m.tempC, 1) + ' °C. Máxima de 6 h: ' + U.num(m.tempMax6h, 1) + ' °C.');
-      } else if (p && m.tempC <= U_.tempHipotermia) {   // sin paciente (banco de pruebas) no aplica
-        a('temp', 'alta', 'Hipotermia', U.num(m.tempC, 1) + ' °C. Revisar temperatura del paciente.');
       }
     }
 
