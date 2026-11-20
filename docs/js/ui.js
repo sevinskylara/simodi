@@ -240,11 +240,19 @@ var UI = (function () {
       '<div class="cama-cuerpo">' +
         '<div class="dato-principal">' +
           '<div>' +
-            '<div class="diuresis-val">' +
-              '<span class="num">' + (m.mlKgH === null ? '—' : U.num(m.mlKgH, 2)) + '</span>' +
-              '<span class="uni">mL/kg/h</span>' +
-            '</div>' +
-            (m.mlKgH === null ? '<div class="diuresis-norm">sin peso cargado</div>' : '') +
+            (d.tipo === 'real'
+              // Equipo real: igual que su pantalla, diuresis horaria en mL/h
+              // (el firmware no aplica KDIGO, así que no se pasa a mL/kg/h)
+              ? '<div class="diuresis-val">' +
+                  '<span class="num">' + (dhEquipo(m) === null ? '—' : U.num(dhEquipo(m), 0)) + '</span>' +
+                  '<span class="uni">mL/h</span>' +
+                '</div>' +
+                (dhEquipo(m) === null ? '<div class="diuresis-norm">completando la primera hora</div>' : '')
+              : '<div class="diuresis-val">' +
+                  '<span class="num">' + (m.mlKgH === null ? '—' : U.num(m.mlKgH, 2)) + '</span>' +
+                  '<span class="uni">mL/kg/h</span>' +
+                '</div>' +
+                (m.mlKgH === null ? '<div class="diuresis-norm">sin peso cargado</div>' : '')) +
           '</div>' +
           '<canvas class="spark" data-spark></canvas>' +
         '</div>' +
@@ -754,8 +762,33 @@ var UI = (function () {
       m.kdigo >= 2
         ? 'critico'
         : (m.kdigo === 1 ? 'aviso' : 'ok');
+    var kdigoSub = m.horasOliguria
+      ? m.horasOliguria + ' h por debajo de 0,5 mL/kg/h'
+      : 'diuresis dentro de objetivo';
+
+    // Equipo real: el estado lo decide el firmware (alarma OLIGURIA)
+    if (m.dispositivo.tipo === 'real') {
+      var oligEq = !!(m.equipo && m.equipo.alarmas && m.equipo.alarmas.indexOf('OLIGURIA') >= 0);
+      kdigoTxt = oligEq ? 'Oliguria' : 'Sin alarma';
+      kdigoSub = 'según el equipo';
+      kdigoClase = oligEq ? 'critico' : 'ok';
+    }
 
     el.innerHTML =
+      (m.dispositivo.tipo === 'real'
+        ? resVal(
+            'Diuresis (1 h)',
+            dhEquipo(m) === null ? '—' : U.num(dhEquipo(m), 0) + ' <small>mL/h</small>',
+            dhEquipo(m) === null ? 'el equipo está completando la primera hora' : 'medida por el equipo',
+            ''
+          ) +
+          resVal(
+            'Diuresis (6 h)',
+            m.mlH6 === null ? '—' : U.num(m.mlH6, 0) + ' <small>mL/h</small>',
+            'promedio de las últimas 6 h',
+            ''
+          )
+        :
       resVal(
         'Diuresis (1 h)',
         m.mlH === null ? '—' : U.num(m.mlH, 0) + ' <small>mL/h</small>',
@@ -780,7 +813,7 @@ var UI = (function () {
           : U.num(m.mlKgH6, 2) + ' <small>mL/kg/h</small>',
         'promedio de las últimas 6 h',
         claseTasa(m.mlKgH6)
-      ) +
+      )) +
 
       resVal(
         'Temperatura',
@@ -804,9 +837,7 @@ var UI = (function () {
       resVal(
         'Estado renal',
         kdigoTxt,
-        m.horasOliguria
-          ? m.horasOliguria + ' h por debajo de 0,5 mL/kg/h'
-          : 'diuresis dentro de objetivo',
+        kdigoSub,
         kdigoClase
       );
   }
@@ -820,6 +851,11 @@ var UI = (function () {
   /* El firmware manda "alarmas":["BATERIA"] cuando la batería está baja */
   function batBajaReal(d) {
     return !!(d && d.equipo && d.equipo.alarmas && d.equipo.alarmas.indexOf('BATERIA') >= 0);
+  }
+
+  /* Diuresis horaria que manda el firmware ("dh", mL/h; null la primera hora) */
+  function dhEquipo(m) {
+    return (m && m.equipo && m.equipo.dh !== null && m.equipo.dh !== undefined) ? m.equipo.dh : null;
   }
 
   function claseTasa(v) {

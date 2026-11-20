@@ -109,6 +109,19 @@ var Alertas = (function () {
       a('color', 'alta', 'Color anómalo (rojizo)', m.color.detalle);
     }
 
+    /* ---- Diuresis del equipo real ----
+       Igual que el firmware: la central no calcula oliguria/anuria/poliuria
+       por su cuenta; solo avisa cuando el ESP32 manda "OLIGURIA" (criterio
+       KDIGO del equipo, hoy apagado en el firmware). */
+    if (d.tipo === 'real') {
+      if (eq.alarmas && eq.alarmas.indexOf('OLIGURIA') >= 0) {
+        a('oliguria', 'alta', 'Oliguria',
+          'El equipo informa diuresis por debajo del umbral' +
+          (m.equipo && m.equipo.dh !== null && m.equipo.dh !== undefined ? ' (' + U.num(m.equipo.dh, 0) + ' mL/h)' : '') + '.');
+      }
+      return out;
+    }
+
     if (!p || m.mlKgH === null) return out;   // sin peso no hay criterio de diuresis
 
     /* ---- Diuresis ---- */
