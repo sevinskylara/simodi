@@ -904,13 +904,21 @@ var UI = (function () {
       notaRango.hidden = true;
     }
 
+    var legD = U.$('#legDiuresis');
+    if (legD) {
+      if (!legD.dataset.original) legD.dataset.original = legD.innerHTML;
+      legD.innerHTML = d.tipo === 'real' ? 'mL/h medidos por el equipo' : legD.dataset.original;
+    }
+
     Graf.barrasDiuresis(
       U.$('#gDiuresis'),
       Modelo.bucketsHorarios(d, rangoHoras),
       {
-        pesoKg: p ? p.pesoKg : null,
-        umbralMlH: m.umbralMlH,
-        umbralPoliuriaMlH: m.umbralPoliuriaMlH
+        // Equipo real: el firmware no usa el peso, así que el gráfico tampoco
+        // (barras en mL/h, sin colores ni umbrales de oliguria/poliuria)
+        pesoKg: (p && d.tipo !== 'real') ? p.pesoKg : null,
+        umbralMlH: d.tipo !== 'real' ? m.umbralMlH : null,
+        umbralPoliuriaMlH: d.tipo !== 'real' ? m.umbralPoliuriaMlH : null
       }
     );
 

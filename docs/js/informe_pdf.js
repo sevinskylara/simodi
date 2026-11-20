@@ -189,13 +189,16 @@ var InformePDF = (function () {
 
   function seccionResumen(doc, y, m) {
     y = tituloSeccion(doc, y, 'Resumen actual');
-    var conPeso = !!m.paciente;
+    // Equipo real: igual que el firmware, sin cálculos por peso (solo mL/h)
+    var conPeso = !!m.paciente && !(m.dispositivo && m.dispositivo.tipo === 'real');
     function diu(mlH, mlKgH) {
       if (mlH === null || mlH === undefined) return '—';
       return U.num(mlH, 0) + ' mL/h' + (conPeso && mlKgH !== null ? ' · ' + U.num(mlKgH, 2) + ' mL/kg/h' : '');
     }
+    var esReal = !!(m.dispositivo && m.dispositivo.tipo === 'real');
+    var dhEq = (esReal && m.equipo && m.equipo.dh !== null && m.equipo.dh !== undefined) ? m.equipo.dh : null;
     var pares = [
-      ['Diuresis última hora', diu(m.mlH, m.mlKgH)],
+      ['Diuresis última hora', esReal ? (dhEq === null ? 'completando la primera hora' : U.num(dhEq, 0) + ' mL/h (equipo)') : diu(m.mlH, m.mlKgH)],
       ['Promedio 6 h', diu(m.mlH6, m.mlKgH6)],
       ['Promedio 24 h', diu(m.mlH24, m.mlKgH24)],
       ['Volumen acumulado', U.num(m.volTotalMl, 0) + ' mL'],
@@ -203,7 +206,7 @@ var InformePDF = (function () {
       ['Temperatura', (m.tempC !== null ? U.num(m.tempC, 1) + ' °C' : '—') +
         (m.tempMax6h !== null ? ' (máx. 6 h: ' + U.num(m.tempMax6h, 1) + ' °C)' : '')],
       ['Color', m.color ? m.color.nombre : '—'],
-      ['Estadio KDIGO (diuresis)', conPeso ? (m.kdigo ? 'Estadio ' + m.kdigo : 'Sin criterio') : 'Requiere peso'],
+      ['Estadio KDIGO (diuresis)', esReal ? 'No aplica (el equipo mide en mL/h, sin peso)' : conPeso ? (m.kdigo ? 'Estadio ' + m.kdigo : 'Sin criterio') : 'Requiere peso'],
       ['Horas en oliguria', conPeso ? String(m.horasOliguria) + ' h consecutivas' : '—'],
       ['Sin flujo apreciable', U.num(m.minSinFlujo, 0) + ' min']
     ];
@@ -215,14 +218,16 @@ var InformePDF = (function () {
     y = tituloSeccion(doc, y, 'Diuresis horaria · últimas 24 h');
     y = espacio(doc, y, 66);
 
-    var conPesoTxt = !!m.paciente;
+    var esReal = !!(m.dispositivo && m.dispositivo.tipo === 'real');
+    var conPesoTxt = !!m.paciente && !esReal;
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8);
     doc.setTextColor.apply(doc, C.tenue);
-    doc.text(conPesoTxt ? 'mL/kg/h' : 'mL/h (sin peso del paciente)', MARGEN, y + 1);
+    doc.text(conPesoTxt ? 'mL/kg/h' : (esReal ? 'mL/h (medida por el equipo)' : 'mL/h (sin peso del paciente)'), MARGEN, y + 1);
     y += 5;
 
-    var conPeso = !!m.paciente;
+    // Equipo real: igual que el firmware, sin cálculos por peso (solo mL/h)
+    var conPeso = !!m.paciente && !(m.dispositivo && m.dispositivo.tipo === 'real');
     var peso = conPeso ? m.paciente.pesoKg : 1;
     var valores = m.buckets.map(function (b) { return b.sinDatos ? null : b.mlH / peso; });
 
@@ -288,7 +293,8 @@ var InformePDF = (function () {
 
   function seccionTablaHoraria(doc, y, m) {
     y = tituloSeccion(doc, y, 'Detalle hora por hora');
-    var conPeso = !!m.paciente;
+    // Equipo real: igual que el firmware, sin cálculos por peso (solo mL/h)
+    var conPeso = !!m.paciente && !(m.dispositivo && m.dispositivo.tipo === 'real');
     var ms = m.dispositivo.muestras;
 
     var filas = [];
