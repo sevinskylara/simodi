@@ -111,38 +111,35 @@ var U = (function () {
     );
   }
 
-  /* Clasifica una lectura RGB en una de las cuatro categorías de SÍMODI. */
+  /* Devuelve la categoría de color de SÍMODI (Normal / Anómalo).
+     Las muestras guardan el color de la categoría como RGB representativo;
+     se busca la referencia más cercana (sirve también para historiales
+     viejos guardados con la escala anterior de 4 colores). */
   function clasificarColor(rgb) {
-    var mejor = null, mejorD = Infinity, i, d;
-
+    var mejor = null, mejorD = Infinity, i, j, d, refs;
     for (i = 0; i < CFG.coloresOrina.length; i++) {
-      d = deltaE(rgb, hexARgb(CFG.coloresOrina[i].hex));
-      if (d < mejorD) {
-        mejorD = d;
-        mejor = CFG.coloresOrina[i];
+      refs = CFG.coloresOrina[i].referencias || [CFG.coloresOrina[i].hex];
+      for (j = 0; j < refs.length; j++) {
+        d = deltaE(rgb, hexARgb(refs[j]));
+        if (d < mejorD) { mejorD = d; mejor = CFG.coloresOrina[i]; }
       }
     }
-
     if (!mejor) {
-      return {
-        nombre: 'Sin clasificar',
-        estado: 'ok',
-        detalle: '',
-        clave: 'sin-clasificar',
-        distancia: null,
-        hex: rgbAHex(rgb)
-      };
+      return { nombre: 'Sin clasificar', estado: 'ok', detalle: '', clave: 'sin-clasificar', hex: rgbAHex(rgb) };
     }
-
-    return {
-      nombre: mejor.nombre,
-      estado: mejor.estado,
-      detalle: mejor.detalle || '',
-      clave: mejor.clave,
-      distancia: mejorD,
-      hex: mejor.hex
-    };
+    return { nombre: mejor.nombre, estado: mejor.estado, detalle: mejor.detalle || '', clave: mejor.clave, hex: mejor.hex };
   }
+
+  /* Categoría a partir del texto del firmware ("NORMAL" / "ANOMALO"). */
+  function categoriaColor(codigo) {
+    if (codigo === null || codigo === undefined) return null;
+    var c = String(codigo).trim().toUpperCase().replace('Ó', 'O');
+    for (var i = 0; i < CFG.coloresOrina.length; i++) {
+      if (CFG.coloresOrina[i].firmware === c || CFG.coloresOrina[i].clave.toUpperCase() === c) return CFG.coloresOrina[i];
+    }
+    return null;
+  }
+
 
   /* ------------------------------ Varios ----------------------------- */
   function id(prefijo) {
@@ -218,7 +215,7 @@ var U = (function () {
     $: $, $$: $$, el: el, esc: esc, num: num, clamp: clamp, lerp: lerp,
     hora: hora, horaSeg: horaSeg, fechaHora: fechaHora, desde: desde, duracion: duracion,
     hexARgb: hexARgb, rgbAHex: rgbAHex, rgbCss: rgbCss, deltaE: deltaE,
-    clasificarColor: clasificarColor,
+    clasificarColor: clasificarColor, categoriaColor: categoriaColor,
     id: id, ruido: ruido, descargar: descargar,
     alarma: alarma, silenciar: silenciar, estaSilenciado: estaSilenciado
   };

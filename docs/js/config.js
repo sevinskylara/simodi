@@ -1,5 +1,5 @@
 /* =====================================================================
-   config.js · Parámetros clínicos, de medición y escala colorimétrica.
+   config.js · Parámetros clínicos, de medición y categorías de color.
    Todo lo "ajustable" del instrumento vive acá.
    ===================================================================== */
 
@@ -81,45 +81,43 @@ var CFG = {
     }
   },
 
-/* ---------------- Clasificación colorimétrica de la orina ----------------
-   SÍMODI clasifica el color observado en cuatro categorías simples.
-   El sensor RGB identifica características ópticas; no realiza diagnóstico
-   químico ni cuantifica bilirrubina o sangre. */
-   
-coloresOrina: [
-  {
-    clave: 'transparente',
-    hex: '#F7F7E8',
-    nombre: 'Transparente',
-    estado: 'ok',
-    detalle: ''
-  },
-  {
-    clave: 'amarillo',
-    hex: '#F2D84A',
-    nombre: 'Amarillo',
-    estado: 'ok',
-    detalle: ''
-  },
-  {
-    clave: 'rojizo',
-    hex: '#B85C5C',
-    nombre: 'Rojizo',
-    estado: 'grave',
-    detalle: 'Coloración rojiza: puede asociarse a presencia de sangre. Requiere valoración clínica.'
-  },
-  {
-    clave: 'marron',
-    hex: '#6B4423',
-    nombre: 'Marrón oscuro',
-    estado: 'grave',
-    detalle: 'Coloración marrón oscura: puede asociarse a pigmentos biliares. Requiere valoración clínica.'
-  }
-],
+/* ---------------- Clasificación del color de la orina ----------------
+   La clasificación la hace el FIRMWARE (sensor TCS34725 calibrado contra la
+   recta del agua y la del amarillo) y llega por Bluetooth como
+   "color":"NORMAL" | "ANOMALO" (null si el sensor está en falla).
+   La central no vuelve a clasificar: solo muestra lo que decidió el equipo.
+   ANOMALO = coloración rojiza sostenida (3 de 10 lecturas); queda enganchado
+   en el equipo hasta que se reconoce con el pulsador ALARMA.
+   El sensor identifica características ópticas; no hace diagnóstico químico
+   ni cuantifica sangre.
+
+   "hex" es el color con que se pinta la categoría en la central.
+   "referencias" sirve para leer historiales viejos guardados como RGB. */
+
+  coloresOrina: [
+    {
+      clave: 'normal',
+      firmware: 'NORMAL',
+      hex: '#E8C547',
+      nombre: 'Normal',
+      estado: 'ok',
+      detalle: 'Sin coloración rojiza.',
+      referencias: ['#E8C547', '#F2D84A', '#F7F7E8']
+    },
+    {
+      clave: 'anomalo',
+      firmware: 'ANOMALO',
+      hex: '#C0504D',
+      nombre: 'Anómalo',
+      estado: 'grave',
+      detalle: 'Coloración rojiza detectada por el equipo: puede asociarse a presencia de sangre. Requiere valoración clínica. Se reconoce con el botón ALARMA del equipo.',
+      referencias: ['#C0504D', '#B85C5C', '#6B4423']
+    }
+  ],
 
   /* ---------------- Enlace con el dispositivo ---------------- */
   enlace: {
-    tipo: 'websocket',                    // websocket | http | bluetooth | serie | manual
+    tipo: 'bluetooth',                    // bluetooth (firmware actual) | websocket | http | serie | manual
     urlWebSocket: 'ws://192.168.4.1:81',  // ESP32 como punto de acceso
     urlHttp: 'http://192.168.4.1/datos',
     periodoHttpMs: 3000,

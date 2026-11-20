@@ -183,7 +183,7 @@ var UI = (function () {
     var d = m.dispositivo;
     var bat = d.bat;
 
-    var claseBat =
+    var claseBat = d.sinBateria ? '' :
       bat <= CFG.umbrales.bateriaCritica
         ? 'critica'
         : (bat <= CFG.umbrales.bateriaBaja ? 'baja' : '');
@@ -211,14 +211,20 @@ var UI = (function () {
           '<span class="badge ' + (d.tipo === 'sim' ? 'sim' : 'real') + '">' +
             (d.tipo === 'sim' ? 'PILOTO' : 'REAL') +
           '</span>' +
-          '<span class="bateria ' + claseBat + '" title="Batería ' + Math.round(bat) + ' %' +
-            (conectado ? ' · dispositivo conectado' : ' · dispositivo sin señal') + '">' +
-            '<span class="bat-cuerpo">' +
-              '<span class="bat-relleno" style="width:' + U.clamp(bat, 0, 100) + '%"></span>' +
-              (conectado ? '<span class="bat-rayo">' + SVG_RAYO + '</span>' : '') +
-            '</span>' +
-            Math.round(bat) + '%' +
-          '</span>' +
+          (d.sinBateria
+            ? '<span class="bateria" title="Sin batería: equipo enchufado a la red' +
+                (conectado ? ' · dispositivo conectado' : ' · dispositivo sin señal') + '">' +
+                '<span class="bat-cuerpo"><span class="bat-rayo">' + SVG_RAYO + '</span></span>' +
+                'Red' +
+              '</span>'
+            : '<span class="bateria ' + claseBat + '" title="Batería ' + Math.round(bat) + ' %' +
+                (conectado ? ' · dispositivo conectado' : ' · dispositivo sin señal') + '">' +
+                '<span class="bat-cuerpo">' +
+                  '<span class="bat-relleno" style="width:' + U.clamp(bat, 0, 100) + '%"></span>' +
+                  (conectado ? '<span class="bat-rayo">' + SVG_RAYO + '</span>' : '') +
+                '</span>' +
+                Math.round(bat) + '%' +
+              '</span>') +
         '</div>' +
       '</div>' +
       '<div class="cama-cuerpo">' +
@@ -242,7 +248,7 @@ var UI = (function () {
           '<div class="mini' + (m.color && m.color.estado !== 'ok' ? ' alerta' : '') + '">' +
             '<div class="mini-val">' +
               '<span class="mini-val-txt">' +
-                (m.color ? U.esc(m.color.nombre) : '—') +
+                (m.color ? U.esc(m.color.nombre) : (fallaColor(m) ? 'Falla' : '—')) +
               '</span>' +
               '<span class="muestra-color" style="background:' +
                 (m.color ? m.color.hex : '#333') +
@@ -748,6 +754,11 @@ var UI = (function () {
           : 'sin peso cargado') +
         (m.umbralMlH !== null
           ? ' · umbral ' + U.num(m.umbralMlH, 0) + ' mL/h'
+          : '') +
+        (m.equipo && m.dispositivo.tipo === 'real'
+          ? ' · equipo: ' + (m.equipo.dh === null || m.equipo.dh === undefined
+              ? 'completando la hora'
+              : U.num(m.equipo.dh, 0) + ' mL/h')
           : ''),
         claseTasa(m.mlKgH)
       ) +
@@ -764,7 +775,7 @@ var UI = (function () {
       resVal(
         'Temperatura',
         m.tempC === null
-          ? '—'
+          ? (fallaEquipo(m, 'TEMP') ? 'Falla' : '—')
           : U.num(m.tempC, 1) + ' <small>°C</small>',
         'máx. 6 h: ' +
           (m.tempMax6h !== null
@@ -775,9 +786,9 @@ var UI = (function () {
 
       resVal(
         'Color',
-        m.color ? U.esc(m.color.nombre) : '—',
-        m.color ? m.color.detalle : '',
-        m.color ? m.color.estado : ''
+        m.color ? U.esc(m.color.nombre) : (fallaColor(m) ? 'Falla' : '—'),
+        m.color ? m.color.detalle : (fallaColor(m) ? 'el sensor de color no responde' : 'sin dato del sensor'),
+        m.color ? m.color.estado : (fallaColor(m) ? 'aviso' : '')
       ) +
 
       resVal(
@@ -789,6 +800,12 @@ var UI = (function () {
         kdigoClase
       );
   }
+
+  /* Falla informada por el firmware ("fallas":["TEMP","COLOR",...]) */
+  function fallaEquipo(m, cual) {
+    return !!(m && m.equipo && m.equipo.fallas && m.equipo.fallas.indexOf(cual) >= 0);
+  }
+  function fallaColor(m) { return fallaEquipo(m, 'COLOR'); }
 
   function claseTasa(v) {
     if (v === null || v === undefined) return '';
@@ -897,8 +914,8 @@ var UI = (function () {
 
     U.$('#legColor').textContent =
       m.color
-        ? 'Actual: ' + m.color.nombre
-        : '';
+        ? 'Actual: ' + m.color.nombre + ' · clasificado por el equipo'
+        : (fallaColor(m) ? 'Sensor de color en falla' : '');
   }
 
   function hexAlpha(hex, a) {
@@ -944,9 +961,9 @@ var UI = (function () {
       '<div class="fila-3">' +
         resVal(
           'Batería',
-          Math.round(d.bat) + ' <small>%</small>',
-          duracionBateria(d),
-          d.bat <= CFG.umbrales.bateriaBaja ? 'critico' : 'ok'
+          d.sinBateria ? 'Sin batería' : Math.round(d.bat) + ' <small>%</small>',
+          d.sinBateria ? 'no hay batería conectada' : duracionBateria(d),
+          d.sinBateria ? '' : (d.bat <= CFG.umbrales.bateriaBaja ? 'critico' : 'ok')
         ) +
         resVal(
           'Fuente',

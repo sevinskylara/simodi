@@ -661,16 +661,10 @@ var Graf = (function () {
 
   /* ===================== Color de orina en el tiempo =================== */
   /*
-     Cada muestra del sensor RGB se clasifica en una de las cuatro
-     categorías definidas en CFG.coloresOrina:
-
-       · Transparente
-       · Amarillo
-       · Rojizo
-       · Marrón oscuro
-
-     El gráfico muestra la categoría obtenida, no una escala numérica
-     de hidratación ni el RGB crudo del sensor.
+     Cada muestra trae la clasificación que hizo el equipo (firmware):
+       · Normal
+       · Anómalo (coloración rojiza)
+     El gráfico muestra esa categoría en el tiempo, no el RGB crudo.
   */
 function tiraColor(canvas, muestras, opts) {
   opts = opts || {};

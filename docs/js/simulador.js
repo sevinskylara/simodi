@@ -19,17 +19,17 @@ var Simulador = (function () {
         return U.hexARgb(CFG.coloresOrina[i].hex);
       }
     }
-    return U.hexARgb('#F2D84A');
+    return U.hexARgb(CFG.coloresOrina[0].hex);
   }
 
-  /* caudal en mL/kg/h · temp en °C · color: categoría de SÍMODI */
+  /* caudal en mL/kg/h · temp en °C · color: 'normal' | 'anomalo' (igual que el firmware) */
   var ESCENARIOS = {
     normal: {
       nombre: 'Evolución normal',
       resumen: 'Diuresis conservada 1–1,5 mL/kg/h, orina amarilla, afebril.',
       caudal: function (h) { return 1.15 + 0.22 * Math.sin(h / 1.9); },
       temp:   function (h) { return 36.8 + 0.12 * Math.sin(h / 3.1); },
-      color:  function (h) { return 'amarillo'; }
+      color:  function (h) { return 'normal'; }
     },
 
     deshidratacion: {
@@ -37,7 +37,7 @@ var Simulador = (function () {
       resumen: 'El caudal urinario disminuye progresivamente.',
       caudal: function (h) { return 0.55 * Math.exp(-h / 10) + 0.35; },
       temp:   function (h) { return 37.2 + 0.1 * Math.sin(h / 2.5); },
-      color:  function (h) { return 'amarillo'; }
+      color:  function (h) { return 'normal'; }
     },
 
     oliguria_lra: {
@@ -45,7 +45,7 @@ var Simulador = (function () {
       resumen: 'Caída sostenida por debajo de 0,5 mL/kg/h: dispara los estadios KDIGO.',
       caudal: function (h) { return 0.95 * Math.exp(-h / 3.2) + 0.17; },
       temp:   function (h) { return 37.5 + 0.15 * Math.sin(h / 2); },
-      color:  function (h) { return 'amarillo'; }
+      color:  function (h) { return 'normal'; }
     },
 
     sepsis: {
@@ -53,7 +53,7 @@ var Simulador = (function () {
       resumen: 'La temperatura de la orina sube a 39 °C mientras el caudal se desploma.',
       caudal: function (h) { return 1.0 * Math.exp(-h / 5) + 0.26; },
       temp:   function (h) { return 37.2 + Math.min(2.1, h * 0.26) + 0.08 * Math.sin(h * 2); },
-      color:  function (h) { return 'amarillo'; }
+      color:  function (h) { return 'normal'; }
     },
 
     poliuria: {
@@ -61,7 +61,7 @@ var Simulador = (function () {
       resumen: 'Más de 3 mL/kg/h de orina muy diluida. Riesgo de hipovolemia.',
       caudal: function (h) { return 3.6 + 1.1 * Math.sin(h / 2.2); },
       temp:   function (h) { return 36.9 + 0.1 * Math.sin(h / 3); },
-      color:  function (h) { return 'transparente'; }
+      color:  function (h) { return 'normal'; }
     },
 
     hematuria: {
@@ -69,7 +69,7 @@ var Simulador = (function () {
       resumen: 'Diuresis conservada con coloración rojiza de la orina.',
       caudal: function (h) { return 1.35 + 0.2 * Math.sin(h / 1.5); },
       temp:   function (h) { return 37.0 + 0.1 * Math.sin(h / 3); },
-      color:  function (h) { return 'rojizo'; }
+      color:  function (h) { return 'anomalo'; }
     },
 
     obstruccion: {
@@ -77,7 +77,7 @@ var Simulador = (function () {
       resumen: 'A las 2,5 h el flujo se detiene con peso estable: sonda acodada o coágulo.',
       caudal: function (h) { return h < 2.5 ? 1.25 : 0.015; },
       temp:   function (h) { return 36.9 + 0.1 * Math.sin(h / 3); },
-      color:  function (h) { return 'amarillo'; }
+      color:  function (h) { return 'normal'; }
     },
 
     bolsa_llena: {
@@ -85,7 +85,7 @@ var Simulador = (function () {
       resumen: 'Diuresis alta sin recambio de bolsa: el colector llega al límite.',
       caudal: function (h) { return 2.3; },
       temp:   function (h) { return 36.9; },
-      color:  function (h) { return 'amarillo'; },
+      color:  function (h) { return 'normal'; },
       sinVaciadoAuto: true
     },
 
@@ -100,7 +100,7 @@ var Simulador = (function () {
       temp: function (h) {
         return 36.4 + Math.min(0.5, h * 0.08);
       },
-      color: function (h) { return 'amarillo'; }
+      color: function (h) { return 'normal'; }
     },
 
     enlace_intermitente: {
@@ -108,7 +108,7 @@ var Simulador = (function () {
       resumen: 'Paciente estable, pero el WiFi se corta cada tanto: prueba el búfer del equipo.',
       caudal: function (h) { return 1.1 + 0.2 * Math.sin(h / 2); },
       temp:   function (h) { return 36.9; },
-      color:  function (h) { return 'amarillo'; },
+      color:  function (h) { return 'normal'; },
       cortes: true
     }
   };

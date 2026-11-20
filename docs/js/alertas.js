@@ -47,14 +47,34 @@ var Alertas = (function () {
       a('sinpaciente', 'tecnica', 'Dispositivo sin paciente',
         d.serie + ' está midiendo pero no tiene paciente vinculado.');
     }
-    if (m.bat <= U_.bateriaCritica) {
+    /* ---- Fallas y avisos que informa el propio equipo (firmware) ---- */
+    var eq = m.equipo || { alarmas: [], fallas: [] };
+    if (d.tipo === 'real' && eq.fallas) {
+      if (eq.fallas.indexOf('BALANZA') >= 0)
+        a('falla-balanza', 'alta', 'Falla de la balanza',
+          d.serie + ': la celda de carga no responde. El volumen mostrado puede no estar actualizado.');
+      if (eq.fallas.indexOf('TEMP') >= 0)
+        a('falla-temp', 'tecnica', 'Falla del sensor de temperatura',
+          d.serie + ': termistor en corto, desconectado o fuera de rango.');
+      if (eq.fallas.indexOf('COLOR') >= 0)
+        a('falla-color', 'tecnica', 'Falla del sensor de color',
+          d.serie + ': el sensor de color no responde. No se está evaluando el color.');
+      if (eq.fallas.indexOf('BOLSA_VACIADA') >= 0)
+        a('bolsa-vaciada', 'tecnica', 'Bolsa vaciada sin tara',
+          d.serie + ': el peso bajó mucho. Si se vació o cambió la bolsa, apretar TARE en el equipo.');
+    }
+
+    if (m.sinBateria) {
+      /* sin batería conectada: el equipo funciona enchufado, no hay alerta */
+    } else if (m.bat <= U_.bateriaCritica) {
       a('bateria', 'alta', 'Batería crítica', d.serie + ' al ' + Math.round(m.bat) + ' %. Conectar a la red.');
     } else if (m.bat <= U_.bateriaBaja) {
       a('bateria', 'tecnica', 'Batería baja', d.serie + ' al ' + Math.round(m.bat) + ' %.');
     }
 
     /* ---- Bolsa colectora ---- */
-    if (m.llenado >= U_.bolsaCritica) {
+    var llenaEquipo = eq.alarmas && eq.alarmas.indexOf('BOLSA_LLENA') >= 0;
+    if (m.llenado >= U_.bolsaCritica || llenaEquipo) {
       a('bolsa', 'alta', 'Bolsa llena',
         'Colector al ' + Math.round(m.llenado * 100) + ' % (' + U.num(m.volBolsaMl, 0) + ' mL). Vaciar ahora: la medición se pierde si rebalsa.');
     } else if (m.llenado >= U_.bolsaAviso) {
@@ -62,7 +82,23 @@ var Alertas = (function () {
         'Colector al ' + Math.round(m.llenado * 100) + ' %. Programar el vaciado.');
     }
 
-    if (!p || m.mlKgH === null) return out;   // sin peso no hay criterio clínico
+    /* ---- Temperatura ---- */
+    if (m.tempC !== null) {
+      if (m.tempC >= U_.tempFebrilAlta) {
+        a('temp', 'critica', 'Hipertermia', U.num(m.tempC, 1) + ' °C medidos en la orina.');
+      } else if (m.tempC >= U_.tempFebril) {
+        a('temp', 'alta', 'Fiebre', U.num(m.tempC, 1) + ' °C. Máxima de 6 h: ' + U.num(m.tempMax6h, 1) + ' °C.');
+      } else if (p && m.tempC <= U_.tempHipotermia) {   // sin paciente (banco de pruebas) no aplica
+        a('temp', 'alta', 'Hipotermia', U.num(m.tempC, 1) + ' °C. Revisar temperatura del paciente.');
+      }
+    }
+
+    /* ---- Color (clasificación del equipo: Normal / Anómalo) ---- */
+    if (m.color && m.color.clave === 'anomalo') {
+      a('color', 'alta', 'Color anómalo (rojizo)', m.color.detalle);
+    }
+
+    if (!p || m.mlKgH === null) return out;   // sin peso no hay criterio de diuresis
 
     /* ---- Diuresis ---- */
     if (m.kdigo === 3) {
@@ -93,26 +129,6 @@ var Alertas = (function () {
       a('obstruccion', 'alta', 'Posible obstrucción de sonda',
         'Sin incremento de volumen hace ' + U.duracion(m.minSinFlujo * 60000) +
         ' con peso estable. Verificar acodamiento o coágulos.');
-    }
-
-    /* ---- Temperatura ---- */
-    if (m.tempC !== null) {
-      if (m.tempC >= U_.tempFebrilAlta) {
-        a('temp', 'critica', 'Hipertermia', U.num(m.tempC, 1) + ' °C medidos en la orina.');
-      } else if (m.tempC >= U_.tempFebril) {
-        a('temp', 'alta', 'Fiebre', U.num(m.tempC, 1) + ' °C. Máxima de 6 h: ' + U.num(m.tempMax6h, 1) + ' °C.');
-      } else if (m.tempC <= U_.tempHipotermia) {
-        a('temp', 'alta', 'Hipotermia', U.num(m.tempC, 1) + ' °C. Revisar temperatura del paciente.');
-      }
-    }
-
-    /* ---- Color ---- */
-    if (m.color) {
-      if (m.color.clave === 'rojizo') {
-        a('color', 'alta', 'Coloración rojiza', m.color.detalle);
-      } else if (m.color.clave === 'marron') {
-        a('color', 'alta', 'Coloración marrón oscura', m.color.detalle);
-      }
     }
 
     return out;

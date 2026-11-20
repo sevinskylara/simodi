@@ -8,11 +8,19 @@
      Bluetooth  BLE + notificaciones  (Web Bluetooth, Chrome/Edge)
      Serie      USB a 115200 baudios  (Web Serial, Chrome/Edge)
 
-   Trama de una muestra:
-     {"serie":"URO-0001","t":1727450000,"peso":412.5,"temp":36.8,
-      "rgb":[210,180,60],"bat":87,"rssi":-62,"fuente":"bateria"}
-   "fuente" es opcional ("bateria" | "red", o el booleano "enchufado"): si el
-   firmware no lo manda, se conserva la última fuente conocida del equipo.
+   Trama de una muestra (firmware SIMODI_completo, por BLE cada 5 s):
+     {"serie":"URO-0001","t":123,"vol":412,"total":530,"dh":45,
+      "temp":36.8,"color":"NORMAL","bat":87,"estado":"OK",
+      "alarmas":["FIEBRE"],"fallas":[]}
+     vol ..... mL en la bolsa (el equipo ya hizo la tara y la conversión)
+     total ... mL producidos en total (no se reinicia con la tara)
+     dh ...... diuresis horaria que calcula el equipo (null hasta 1 h)
+     temp .... °C (null si el sensor de temperatura está en falla)
+     color ... clasificación del equipo: "NORMAL" | "ANOMALO" (null = falla)
+     bat ..... % de batería (null = no hay batería: equipo enchufado)
+     alarmas . "BOLSA_LLENA" "OLIGURIA" "FIEBRE" "COLOR" "BATERIA"
+     fallas .. "BALANZA" "TEMP" "COLOR" "BOLSA_VACIADA"
+   También se aceptan tramas viejas con "peso" (g) y "rgb":[r,g,b].
 
    Trama de recuperación tras un corte (el ESP32 guarda en su memoria y
    reenvía todo junto al reconectar):
@@ -58,20 +66,23 @@ var Conexion = (function () {
     var vol  = primero(obj, ['vol', 'volumen', 'vol_ml', 'volMl']);
     if (peso === null && vol === null) return null;
 
-    var rgb = obj.rgb;
-    if (!rgb && (obj.r !== undefined)) rgb = [obj.r, obj.g, obj.b];
-    if (!rgb && obj.color && obj.color.length === 3) rgb = obj.color;
-    // Sin sensor de color el equipo no manda "rgb": queda null y se muestra "—".
-    if (!rgb) rgb = null;
+    // Color: el firmware manda su clasificación ("NORMAL" / "ANOMALO").
+    // Se guarda como el RGB representativo de esa categoría, así el resto
+    // de la central (gráficos, historial, PDF) sigue funcionando igual.
+    // null = sensor en falla → se muestra "—" y aparece la falla técnica.
+    var rgb = null;
+    if (typeof obj.color === 'string') {
+      var cat = U.categoriaColor(obj.color);
+      if (cat) rgb = U.hexARgb(cat.hex);
+    } else if (obj.rgb) rgb = obj.rgb;
+    else if (obj.r !== undefined) rgb = [obj.r, obj.g, obj.b];
+    else if (Array.isArray(obj.color) && obj.color.length === 3) rgb = obj.color;
 
     var t = primero(obj, ['t', 'ts', 'tiempo', 'time']);
     if (t === null) t = Date.now();
     else if (t < 1e12) t = t * 1000;             // llegó en segundos
     // Un ESP32 sin RTC manda milisegundos desde el arranque: se reancla al reloj de la PC.
     if (t < 1e12) t = Date.now();
-
-    var med = Modelo.estado.medicion;
-    if (peso === null) peso = med.taraBolsaG + vol * med.densidadOrina;
 
     // Fuente de alimentación: el firmware puede mandar "fuente":"red"/"bateria"
     // o, más simple, un booleano "enchufado"/"plugged". Si no manda nada, se
@@ -81,17 +92,34 @@ var Conexion = (function () {
     var fuente = fuenteRaw !== null ? String(fuenteRaw)
       : (enchufado !== null ? (enchufado ? 'red' : 'bateria') : undefined);
 
+    // "bat":null = el equipo no tiene batería conectada (está enchufado).
+    var batRaw = primero(obj, ['bat', 'bateria', 'battery']);
+    var sinBateria = ('bat' in obj) && obj.bat === null;
+    if (sinBateria) fuente = 'red';
+
+    var temp = primero(obj, ['temp', 'temp_c', 'tempC', 'temperatura']);
+    var dh = primero(obj, ['dh', 'diuresis_h']);
+    var total = primero(obj, ['total', 'vol_total']);
+
     return {
       serie: obj.serie || obj.id || obj.dev || st.serieVista || 'URO-REAL',
       t: t,
-      pesoG: Number(peso),
-      // Sin sensor de temperatura llega null: se muestra "—" en vez de un valor inventado.
-      tempC: primero(obj, ['temp', 'temp_c', 'tempC', 'temperatura']) === null
-        ? null : Number(primero(obj, ['temp', 'temp_c', 'tempC', 'temperatura'])),
+      pesoG: peso === null ? undefined : Number(peso),
+      volMl: vol === null ? undefined : Number(vol),
+      // Sin sensor de temperatura (o en falla) llega null: se muestra "—".
+      tempC: temp === null ? null : Number(temp),
       rgb: rgb ? rgb.map(Number) : null,
-      bat: Number(primero(obj, ['bat', 'bateria', 'battery']) === null ? 100 : primero(obj, ['bat', 'bateria', 'battery'])),
+      bat: batRaw === null ? undefined : Number(batRaw),
+      sinBateria: sinBateria,
       rssi: Number(primero(obj, ['rssi', 'senal']) === null ? -60 : primero(obj, ['rssi', 'senal'])),
       fuente: fuente,
+      equipo: {
+        dh: dh === null ? null : Number(dh),
+        total: total === null ? null : Number(total),
+        estado: obj.estado || null,
+        alarmas: Array.isArray(obj.alarmas) ? obj.alarmas.map(String) : [],
+        fallas: Array.isArray(obj.fallas) ? obj.fallas.map(String) : []
+      },
       origen: 'enlace'
     };
   }

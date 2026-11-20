@@ -251,13 +251,22 @@ var Modelo = (function () {
 
   /* ======================= Ingreso de muestras ======================= */
 
-  /* lectura: { t, pesoG, tempC, rgb:[r,g,b], bat, rssi, origen } */
+  /* lectura: { t, pesoG | volMl, tempC, rgb:[r,g,b], bat, sinBateria, rssi, equipo, origen } */
   function ingresarMuestra(dispId, lectura) {
     var d = E.dispositivos[dispId];
     if (!d) return null;
 
     var tara = (d.tara !== undefined && d.tara !== null) ? d.tara : E.medicion.taraBolsaG;
-    var volMl = Math.max(0, (lectura.pesoG - tara) / E.medicion.densidadOrina);
+    var volMl;
+    if (lectura.volMl !== undefined && lectura.volMl !== null && !isNaN(lectura.volMl)) {
+      // El firmware ya manda mL en la bolsa (tara y densidad hechas en el equipo).
+      volMl = Math.max(0, lectura.volMl);
+      if (lectura.pesoG === undefined || lectura.pesoG === null || isNaN(lectura.pesoG)) {
+        lectura.pesoG = tara + volMl * E.medicion.densidadOrina;   // solo informativo
+      }
+    } else {
+      volMl = Math.max(0, (lectura.pesoG - tara) / E.medicion.densidadOrina);
+    }
     var prev = d.muestras.length ? d.muestras[d.muestras.length - 1] : null;
 
     if (prev) {
@@ -293,6 +302,11 @@ var Modelo = (function () {
     d.reloj = Math.max(d.reloj || 0, m.t);
     d.bat = m.bat; d.rssi = m.rssi;
     if (lectura.fuente !== undefined) d.fuente = lectura.fuente;
+    if (lectura.origen === 'enlace' || lectura.origen === 'buffer') {
+      if (lectura.sinBateria !== undefined) d.sinBateria = !!lectura.sinBateria;
+      // Lo que informa el propio equipo (diuresis, alarmas y fallas del firmware)
+      if (lectura.equipo) d.equipo = lectura.equipo;
+    }
     if (d.estado !== 'en-linea' && lectura.origen !== 'buffer') d.estado = 'en-linea';
 
     podar(d);
@@ -511,6 +525,8 @@ var Modelo = (function () {
       tempMax6h: null,
       color: (ultima && ultima.rgb) ? U.clasificarColor(ultima.rgb) : null,
       bat: d.bat, rssi: d.rssi,
+      sinBateria: !!d.sinBateria,
+      equipo: d.equipo || null,
       minSinFlujo: minutosSinFlujo(d),
       horasOliguria: (pesoKg && buckets.length) ? horasBajoUmbral(buckets, pesoKg, CFG.umbrales.oliguria) : 0,
       horasOliguriaGrave: (pesoKg && buckets.length) ? horasBajoUmbral(buckets, pesoKg, CFG.umbrales.oliguriaGrave) : 0,

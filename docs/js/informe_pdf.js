@@ -182,7 +182,7 @@ var InformePDF = (function () {
       ['Diagnóstico', p && p.dx ? p.dx : '—'],
       ['Ingreso', p && p.ingreso ? fecha(p.ingreso) : '—'],
       ['Dispositivo', d ? d.serie : '—'],
-      ['Batería', d ? (Math.round(d.bat) + ' %') : '—']
+      ['Batería', d ? (d.sinBateria ? 'Sin batería (enchufado)' : Math.round(d.bat) + ' %') : '—']
     ];
     return tablaDatos(doc, y, pares);
   }
