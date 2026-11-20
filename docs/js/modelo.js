@@ -51,6 +51,7 @@ var Modelo = (function () {
         d.eventos = d.eventos || [];
         d.reloj = d.muestras.length ? d.muestras[d.muestras.length - 1].t : Date.now();
       });
+      deduplicarPacientes();
       return false; // no es la primera vez
     }
     E.enlace = Object.assign({}, CFG.enlace);
@@ -226,7 +227,67 @@ var Modelo = (function () {
     return true;
   }
 
+  /* ===================== Pacientes sin duplicados ===================== */
+  /* La historia clínica (HC) identifica al paciente. Dos fichas con la misma
+     HC y el mismo nombre son el mismo paciente cargado dos veces. */
+  var aliasPaciente = {};   // id duplicado -> id que se conserva
+
+  function normHc(hc) { return String(hc || '').trim().toUpperCase().replace(/\s+/g, ''); }
+  function normNombre(n) {
+    return String(n || '').trim().toLowerCase()
+      .normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, ' ');
+  }
+
+  function pacientePorHc(hc) {
+    var h = normHc(hc);
+    if (!h) return null;
+    var ks = Object.keys(E.pacientes);
+    for (var i = 0; i < ks.length; i++) if (normHc(E.pacientes[ks[i]].hc) === h) return E.pacientes[ks[i]];
+    return null;
+  }
+
+  function idPaciente(id) { return (id && aliasPaciente[id]) || id; }
+
+  /* Une las fichas repetidas: se conserva la que está en una cama (o la más
+     vieja) y las camas/equipos que apuntaban a la copia pasan a la que queda. */
+  function deduplicarPacientes() {
+    var enCama = {};
+    E.camas.forEach(function (c) { if (c.pacienteId) enCama[c.pacienteId] = 1; });
+    var grupos = {};
+    Object.keys(E.pacientes).forEach(function (k) {
+      var p = E.pacientes[k];
+      var h = normHc(p.hc);
+      if (!h) return;
+      var clave = h + '|' + normNombre(p.nombre);
+      (grupos[clave] = grupos[clave] || []).push(p);
+    });
+    var unidos = 0;
+    Object.keys(grupos).forEach(function (clave) {
+      var g = grupos[clave];
+      if (g.length < 2) return;
+      g.sort(function (a, b) {
+        if (!!enCama[b.id] !== !!enCama[a.id]) return enCama[b.id] ? 1 : -1;
+        return (a.ingreso || 0) - (b.ingreso || 0);
+      });
+      var queda = g[0];
+      g.slice(1).forEach(function (dup) {
+        aliasPaciente[dup.id] = queda.id;
+        E.camas.forEach(function (c) { if (c.pacienteId === dup.id) c.pacienteId = queda.id; });
+        Object.keys(E.dispositivos).forEach(function (k) {
+          if (E.dispositivos[k].pacienteActual === dup.id) E.dispositivos[k].pacienteActual = queda.id;
+        });
+        delete E.pacientes[dup.id];
+        unidos++;
+      });
+    });
+    return unidos;
+  }
+
+  /* Alta de paciente. Si ya existe la misma HC con el mismo nombre, devuelve
+     la ficha existente en vez de crear otra. */
   function altaPaciente(datos) {
+    var existente = datos && pacientePorHc(datos.hc);
+    if (existente && normNombre(existente.nombre) === normNombre(datos.nombre)) return existente;
     var p = Object.assign({
       id: U.id('pac'), nombre: '', hc: '', edad: null, sexo: '-', pesoKg: 70,
       dx: '', ingreso: Date.now(), objetivoMlKgH: 0.5, notas: ''
@@ -344,7 +405,9 @@ var Modelo = (function () {
      sigue siendo local a cada navegador. */
 
   function aplicarPacienteRemoto(p) {
+    if (aliasPaciente[p.id]) return;          // copia ya unificada
     E.pacientes[p.id] = p;
+    deduplicarPacientes();
   }
 
   function aplicarCamaRemota(data) {
@@ -355,7 +418,7 @@ var Modelo = (function () {
       E.camas.push(cama);
     }
     if (data.etiqueta) cama.etiqueta = data.etiqueta;
-    cama.pacienteId = data.pacienteId || null;
+    cama.pacienteId = idPaciente(data.pacienteId) || null;
     cama.dispositivoId = data.dispositivoId || null;
     cama.serieInventario = data.serieInventario || null;
     // Si en otra computadora se asignó un paciente nuevo a este equipo,
@@ -580,6 +643,8 @@ var Modelo = (function () {
     asignar: asignar,
     trasladarPaciente: trasladarPaciente,
     altaPaciente: altaPaciente,
+    pacientePorHc: pacientePorHc,
+    deduplicarPacientes: deduplicarPacientes,
     reiniciarDispositivo: reiniciarDispositivo,
     reiniciarHistorial: reiniciarHistorial,
     ingresarMuestra: ingresarMuestra,

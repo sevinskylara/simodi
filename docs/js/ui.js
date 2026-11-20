@@ -1289,8 +1289,27 @@ var UI = (function () {
       var nuevo = leerFormNuevoPaciente();
 
       if (nuevo) {
-        var p = Modelo.altaPaciente(nuevo);
-        pacId = p.id;
+        // No crear dos fichas para la misma historia clínica
+        var ya = Modelo.pacientePorHc(nuevo.hc);
+        if (ya) {
+          var camaDeYa = Modelo.estado.camas.filter(function (c) {
+            return c.pacienteId === ya.id && c.id !== camaId;
+          })[0];
+          if (camaDeYa) {
+            toast(nuevo.hc + ' ya es ' + ya.nombre + ' en ' + camaDeYa.etiqueta + '. Usá "Trasladar" si cambió de cama.', 'error');
+            return;
+          }
+          if (U.esc(ya.nombre).toLowerCase() !== U.esc(nuevo.nombre).toLowerCase() &&
+              !confirm(nuevo.hc + ' ya está cargada a nombre de ' + ya.nombre +
+                       '.\n¿Vincular ese paciente? (Cancelar para revisar la HC)')) {
+            return;
+          }
+          pacId = ya.id;
+          toast(ya.nombre + ' ya estaba cargado: se vinculó la ficha existente');
+        } else {
+          var p = Modelo.altaPaciente(nuevo);
+          pacId = p.id;
+        }
       }
 
       Modelo.asignar(
