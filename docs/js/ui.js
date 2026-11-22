@@ -777,11 +777,13 @@ var UI = (function () {
           : '');
     }
 
-    // Equipo real: si el firmware manda OLIGURIA (USAR_KDIGO activado), esa sí es alarma
-    if (m.dispositivo.tipo === 'real' &&
-        m.equipo && m.equipo.alarmas && m.equipo.alarmas.indexOf('OLIGURIA') >= 0) {
-      kdigoTxt = 'Oliguria';
-      kdigoSub = 'alarma informada por el equipo';
+    // Equipo real: si el firmware manda OLIGURIA (1 h) u OLIGURIA_6H (promedio 6 h), es alarma
+    var alEq = (m.dispositivo.tipo === 'real' && m.equipo && m.equipo.alarmas) ? m.equipo.alarmas : [];
+    var ol1 = alEq.indexOf('OLIGURIA') >= 0, ol6 = alEq.indexOf('OLIGURIA_6H') >= 0;
+    if (ol1 || ol6) {
+      kdigoTxt = 'Diuresis baja';
+      kdigoSub = 'alarma del equipo: ' +
+        (ol1 && ol6 ? '1 h y promedio 6 h' : ol1 ? 'última hora' : 'promedio 6 h') + ' < 30 mL/h';
       kdigoClase = 'critico';
     }
 

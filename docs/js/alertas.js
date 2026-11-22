@@ -23,6 +23,10 @@ var Alertas = (function () {
      que sostenerse este tiempo antes de confirmarse o de darse por resuelta. */
   var DEBOUNCE_MS = 6000;
 
+  /* Diuresis baja en mL/h, igual que el firmware (UMBRAL_DH_MLH):
+     ultima hora < 30 mL/h y promedio de 6 h < 30 mL/h. Sin peso. */
+  var DH_UMBRAL_MLH = 30;
+
   /* ------------------------- Reglas por cama ------------------------- */
   function reglas(m) {
     var out = [];
@@ -108,16 +112,31 @@ var Alertas = (function () {
     }
 
     /* ---- Diuresis del equipo real ----
-       Igual que el firmware: la central no calcula oliguria/anuria/poliuria
-       por su cuenta; solo avisa cuando el ESP32 manda "OLIGURIA" (criterio
-       KDIGO del equipo, hoy apagado en el firmware). */
+       Igual que el firmware: la central no calcula oliguria por su cuenta;
+       solo avisa cuando el ESP32 manda "OLIGURIA" (ultima hora < 30 mL/h)
+       u "OLIGURIA_6H" (promedio de las ultimas 6 h < 30 mL/h). */
     if (d.tipo === 'real') {
       if (eq.alarmas && eq.alarmas.indexOf('OLIGURIA') >= 0) {
-        a('oliguria', 'alta', 'Oliguria',
-          'El equipo informa diuresis por debajo del umbral' +
+        a('oliguria', 'alta', 'Diuresis baja (1 h)',
+          'El equipo informa diuresis de la última hora por debajo de ' + DH_UMBRAL_MLH + ' mL/h' +
           (m.equipo && m.equipo.dh !== null && m.equipo.dh !== undefined ? ' (' + U.num(m.equipo.dh, 0) + ' mL/h)' : '') + '.');
       }
+      if (eq.alarmas && eq.alarmas.indexOf('OLIGURIA_6H') >= 0) {
+        a('oliguria6h', 'alta', 'Diuresis baja (promedio 6 h)',
+          'El equipo informa un promedio de las últimas 6 h por debajo de ' + DH_UMBRAL_MLH + ' mL/h' +
+          (m.mlH6 !== null && m.mlH6 !== undefined ? ' (' + U.num(m.mlH6, 0) + ' mL/h)' : '') + '.');
+      }
       return out;
+    }
+
+    /* ---- Diuresis de las camas piloto: mismos umbrales que el firmware ---- */
+    if (m.mlH !== null && m.mlH !== undefined && m.mlH < DH_UMBRAL_MLH) {
+      a('oliguria', 'alta', 'Diuresis baja (1 h)',
+        U.num(m.mlH, 0) + ' mL/h en la última hora (umbral ' + DH_UMBRAL_MLH + ' mL/h).');
+    }
+    if (m.mlH6 !== null && m.mlH6 !== undefined && m.mlH6 < DH_UMBRAL_MLH) {
+      a('oliguria6h', 'alta', 'Diuresis baja (promedio 6 h)',
+        U.num(m.mlH6, 0) + ' mL/h promedio en las últimas 6 h (umbral ' + DH_UMBRAL_MLH + ' mL/h).');
     }
 
     /* ---- Diuresis de las camas piloto ----

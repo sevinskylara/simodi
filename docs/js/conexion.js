@@ -18,7 +18,8 @@
      temp .... °C (null si el sensor de temperatura está en falla)
      color ... clasificación del equipo: "NORMAL" | "ANOMALO" (null = falla)
      bat ..... % de batería (null = no hay batería: equipo enchufado)
-     alarmas . "BOLSA_LLENA" "OLIGURIA" "FIEBRE" "COLOR" "BATERIA"
+     alarmas . "BOLSA_LLENA" "OLIGURIA" (1 h < 30 mL/h) "OLIGURIA_6H" (prom. 6 h < 30 mL/h)
+               "FIEBRE" "COLOR" "BATERIA"
      fallas .. "BALANZA" "TEMP" "COLOR" "BOLSA_VACIADA"
    También se aceptan tramas viejas con "peso" (g) y "rgb":[r,g,b].
 
