@@ -72,10 +72,9 @@ var Alertas = (function () {
       /* igual que el firmware: solo avisa cuando manda la alarma BATERIA */
       if (eq.alarmas && eq.alarmas.indexOf('BATERIA') >= 0)
         a('bateria', 'alta', 'Batería baja', d.serie + ': el equipo informa batería baja. Conectar a la red.');
-    } else if (m.bat <= U_.bateriaCritica) {
-      a('bateria', 'alta', 'Batería crítica', d.serie + ' al ' + Math.round(m.bat) + ' %. Conectar a la red.');
     } else if (m.bat <= U_.bateriaBaja) {
-      a('bateria', 'tecnica', 'Batería baja', d.serie + ' al ' + Math.round(m.bat) + ' %.');
+      // Piloto: igual que el equipo, sin porcentaje
+      a('bateria', 'alta', 'Batería baja', d.serie + ': batería baja. Conectar a la red.');
     }
 
     /* ---- Bolsa colectora ---- */

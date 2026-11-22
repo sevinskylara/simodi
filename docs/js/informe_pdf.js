@@ -182,7 +182,7 @@ var InformePDF = (function () {
       ['Diagnóstico', p && p.dx ? p.dx : '—'],
       ['Ingreso', p && p.ingreso ? fecha(p.ingreso) : '—'],
       ['Dispositivo', d ? d.serie : '—'],
-      ['Batería', d ? (d.sinBateria ? 'Sin batería (enchufado)' : d.tipo === 'real' ? (d.equipo && d.equipo.alarmas && d.equipo.alarmas.indexOf('BATERIA') >= 0 ? 'Baja' : 'OK') : Math.round(d.bat) + ' %') : '—']
+      ['Batería', d ? (d.sinBateria ? 'Sin batería (enchufado)' : d.tipo === 'real' ? (d.equipo && d.equipo.alarmas && d.equipo.alarmas.indexOf('BATERIA') >= 0 ? 'Baja' : 'OK') : (d.bat <= CFG.umbrales.bateriaBaja ? 'Baja' : 'OK')) : '—']
     ];
     return tablaDatos(doc, y, pares);
   }

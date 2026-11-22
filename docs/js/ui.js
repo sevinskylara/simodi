@@ -215,7 +215,7 @@ var UI = (function () {
           '<span class="badge ' + (d.tipo === 'sim' ? 'sim' : 'real') + '">' +
             (d.tipo === 'sim' ? 'PILOTO' : 'REAL') +
           '</span>' +
-          (d.tipo === 'real' && !d.sinBateria
+          (!d.sinBateria
             ? (batBajaEquipo
                 ? '<span class="bateria critica" title="El equipo informa batería baja: conectar a la red">' +
                     '<span class="bat-cuerpo"><span class="bat-relleno" style="width:10%"></span></span>' +
@@ -864,6 +864,10 @@ var UI = (function () {
 
   /* El firmware manda "alarmas":["BATERIA"] cuando la batería está baja */
   function batBajaReal(d) {
+    if (d && d.tipo !== 'real') {
+      // Piloto: igual que el equipo, solo "batería baja" (sin porcentaje)
+      return !d.sinBateria && d.bat <= CFG.umbrales.bateriaBaja;
+    }
     return !!(d && d.equipo && d.equipo.alarmas && d.equipo.alarmas.indexOf('BATERIA') >= 0);
   }
 
@@ -1052,14 +1056,11 @@ var UI = (function () {
         resVal(
           'Batería',
           d.sinBateria ? 'Sin batería'
-            : d.tipo === 'real' ? (batBajaReal(d) ? 'Baja' : 'OK')
-            : Math.round(d.bat) + ' <small>%</small>',
+            : (batBajaReal(d) ? 'Baja' : 'OK'),
           d.sinBateria ? 'no hay batería conectada'
-            : d.tipo === 'real' ? (batBajaReal(d) ? 'conectar a la red' : 'el equipo avisa cuando está baja')
-            : duracionBateria(d),
+            : (batBajaReal(d) ? 'conectar a la red' : 'el equipo avisa cuando está baja'),
           d.sinBateria ? ''
-            : d.tipo === 'real' ? (batBajaReal(d) ? 'critico' : 'ok')
-            : (d.bat <= CFG.umbrales.bateriaBaja ? 'critico' : 'ok')
+            : (batBajaReal(d) ? 'critico' : 'ok')
         ) +
         resVal(
           'Fuente',
