@@ -50,7 +50,7 @@ var Simulador = (function () {
 
     sepsis: {
       nombre: 'Sepsis · fiebre + oliguria',
-      resumen: 'La temperatura de la orina sube a 39 °C mientras el caudal se desploma.',
+      resumen: 'La temperatura en la vejiga sube a 39 °C mientras el caudal se desploma.',
       caudal: function (h) { return 1.0 * Math.exp(-h / 5) + 0.26; },
       temp:   function (h) { return 37.2 + Math.min(2.1, h * 0.26) + 0.08 * Math.sin(h * 2); },
       color:  function (h) { return 'normal'; }

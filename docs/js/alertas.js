@@ -99,11 +99,11 @@ var Alertas = (function () {
     if (d.tipo === 'real') {
       if (eq.alarmas && eq.alarmas.indexOf('FIEBRE') >= 0) {
         a('temp', 'alta', 'Fiebre',
-          (m.tempC !== null ? U.num(m.tempC, 1) + ' °C medidos en la orina. ' : '') + 'Alarma informada por el equipo.');
+          (m.tempC !== null ? U.num(m.tempC, 1) + ' °C medidos en la vejiga. ' : '') + 'Alarma informada por el equipo.');
       }
     } else if (m.tempC !== null && m.tempC > U_.tempFebril) {
       // Piloto: misma regla que el firmware (FIEBRE por encima de 38 °C)
-      a('temp', 'alta', 'Fiebre', U.num(m.tempC, 1) + ' °C medidos en la orina.');
+      a('temp', 'alta', 'Fiebre', U.num(m.tempC, 1) + ' °C medidos en la vejiga.');
     }
 
     /* ---- Color (clasificación del equipo: Normal / Anómalo) ---- */
