@@ -1638,9 +1638,30 @@ var UI = (function () {
       '</div>' +
 
       '<div class="sep"></div>' +
-      '<div class="subtitulo">Calibración de la medición</div>' +
+      '<div class="subtitulo">Bolsa colectora</div>' +
 
-      '<div class="fila-3">' +
+      '<div class="campo">' +
+        '<label>Capacidad bolsa (mL)</label>' +
+        '<input type="number" id="cfgCap" value="' + med.capacidadBolsaML + '">' +
+      '</div>' +
+      '<p class="nota">Tiene que coincidir con CAPACIDAD_BOLSA_ML del firmware. La alarma de bolsa llena del equipo real la decide el ESP32.</p>' +
+
+      '<div class="sep"></div>' +
+      '<div class="subtitulo">Modo piloto</div>' +
+
+      '<div class="campo">' +
+          '<label>Velocidad de simulación</label>' +
+          '<select id="cfgVel">' +
+            CFG.velocidades.map(function (v) {
+              return '<option value="' + v.v + '"' +
+                (Modelo.estado.velocidad === v.v ? ' selected' : '') +
+                '>' +
+                v.rot +
+              '</option>';
+            }).join('') +
+          '</select>' +
+        '</div>' +
+      '<div class="fila-3" style="grid-template-columns:repeat(2,1fr)">' +
         '<div class="campo">' +
           '<label>Densidad de la orina</label>' +
           '<input type="number" id="cfgDensidad" step="0.001" value="' + med.densidadOrina + '">' +
@@ -1649,34 +1670,15 @@ var UI = (function () {
           '<label>Tara de bolsa (g)</label>' +
           '<input type="number" id="cfgTara" value="' + med.taraBolsaG + '">' +
         '</div>' +
-        '<div class="campo">' +
-          '<label>Capacidad bolsa (mL)</label>' +
-          '<input type="number" id="cfgCap" value="' + med.capacidadBolsaML + '">' +
-        '</div>' +
       '</div>' +
-
-      '<div class="sep"></div>' +
-      '<div class="subtitulo">Modo piloto</div>' +
-
-      '<div class="campo">' +
-        '<label>Velocidad de simulación</label>' +
-        '<select id="cfgVel">' +
-          CFG.velocidades.map(function (v) {
-            return '<option value="' + v.v + '"' +
-              (Modelo.estado.velocidad === v.v ? ' selected' : '') +
-              '>' +
-              v.rot +
-            '</option>';
-          }).join('') +
-        '</select>' +
-      '</div>' +
+      '<p class="nota">Densidad y tara solo se usan para simular el peso en las camas piloto y en la carga manual. El equipo real ya manda el volumen en mL (la tara y la densidad se aplican en el ESP32).</p>' +
 
       '<div class="sep"></div>' +
       '<div class="subtitulo">Datos locales</div>' +
 
-      '<p class="nota">Todo se guarda en este navegador (' +
+      '<p class="nota">Las mediciones se guardan en este navegador (' +
         Almacen.tamano() +
-        ' KB usados). No se envía a ningún servidor.</p>' +
+        ' KB usados). Pacientes, camas y el registro de auditoría se sincronizan con la nube.</p>' +
 
       '<div class="acciones" style="justify-content:flex-start">' +
         '<button class="btn secundario chico" id="btnExportarTodo">Exportar todo a PDF</button>' +
