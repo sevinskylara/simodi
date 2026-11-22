@@ -779,7 +779,7 @@ var UI = (function () {
         ? resVal(
             'Diuresis (1 h)',
             dhEquipo(m) === null ? '—' : U.num(dhEquipo(m), 0) + ' <small>mL/h</small>',
-            dhEquipo(m) === null ? 'el equipo está completando la primera hora' : 'medida por el equipo',
+            dhEquipo(m) === null ? 'el equipo está completando la primera hora' : 'medida por el equipo' + dhPorKgTxt(m),
             ''
           ) +
           resVal(
@@ -856,6 +856,15 @@ var UI = (function () {
   /* Diuresis horaria que manda el firmware ("dh", mL/h; null la primera hora) */
   function dhEquipo(m) {
     return (m && m.equipo && m.equipo.dh !== null && m.equipo.dh !== undefined) ? m.equipo.dh : null;
+  }
+
+  /* Solo informativo: dh del equipo / peso del paciente. Sin colores ni
+     alarma, porque el firmware no aplica KDIGO. */
+  function dhPorKgTxt(m) {
+    var dh = dhEquipo(m);
+    var kg = m && m.paciente ? m.paciente.pesoKg : null;
+    if (dh === null || !kg || kg <= 0) return '';
+    return ' · ≈ ' + U.num(dh / kg, 2) + ' mL/kg/h (' + U.num(kg, 0) + ' kg)';
   }
 
   function claseTasa(v) {
