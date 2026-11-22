@@ -206,7 +206,7 @@ var InformePDF = (function () {
       ['Temperatura', (m.tempC !== null ? U.num(m.tempC, 1) + ' °C' : '—') +
         (m.tempMax6h !== null ? ' (máx. 6 h: ' + U.num(m.tempMax6h, 1) + ' °C)' : '')],
       ['Color', m.color ? m.color.nombre : '—'],
-      ['Estadio KDIGO (diuresis)', esReal ? 'No aplica (el equipo mide en mL/h, sin peso)' : conPeso ? (m.kdigo ? 'Estadio ' + m.kdigo : 'Sin criterio') : 'Requiere peso'],
+      ['Estadio KDIGO (diuresis)', 'No aplica (alarmas por los umbrales del equipo)'],
       ['Horas en oliguria', conPeso ? String(m.horasOliguria) + ' h consecutivas' : '—'],
       ['Sin flujo apreciable', U.num(m.minSinFlujo, 0) + ' min']
     ];

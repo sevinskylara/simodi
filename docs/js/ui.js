@@ -65,8 +65,9 @@ var UI = (function () {
       filas.sort(function (a, b) { return PESO_ORDEN[a.estado] - PESO_ORDEN[b.estado]; });
     } else if (orden === 'diuresis') {
       filas.sort(function (a, b) {
-        var av = (a.m && a.m.mlKgH !== null && a.m.mlKgH !== undefined) ? a.m.mlKgH : Infinity;
-        var bv = (b.m && b.m.mlKgH !== null && b.m.mlKgH !== undefined) ? b.m.mlKgH : Infinity;
+        var av = dhCama(a.m), bv = dhCama(b.m);
+        if (av === null) av = Infinity;
+        if (bv === null) bv = Infinity;
         return av - bv;
       });
     } else {
@@ -248,11 +249,13 @@ var UI = (function () {
                   '<span class="uni">mL/h</span>' +
                 '</div>' +
                 (dhEquipo(m) === null ? '<div class="diuresis-norm">completando la primera hora</div>' : '')
+              // Piloto: igual que el equipo real, por fuera solo mL/h
+              // (el mL/kg/h se ve al entrar a la cama)
               : '<div class="diuresis-val">' +
-                  '<span class="num">' + (m.mlKgH === null ? '—' : U.num(m.mlKgH, 2)) + '</span>' +
-                  '<span class="uni">mL/kg/h</span>' +
+                  '<span class="num">' + (m.mlH === null ? '—' : U.num(m.mlH, 0)) + '</span>' +
+                  '<span class="uni">mL/h</span>' +
                 '</div>' +
-                (m.mlKgH === null ? '<div class="diuresis-norm">sin peso cargado</div>' : '')) +
+                (m.mlH === null ? '<div class="diuresis-norm">completando la primera hora</div>' : '')) +
           '</div>' +
           '<canvas class="spark" data-spark></canvas>' +
         '</div>' +
@@ -298,7 +301,7 @@ var UI = (function () {
     var cv = div.querySelector('[data-spark]');
 
     requestAnimationFrame(function () {
-      Graf.sparkline(cv, sub24, colorEstado(estado), m.umbralMlH);
+      Graf.sparkline(cv, sub24, colorEstado(estado), null);
     });
 
     return div;
@@ -755,23 +758,31 @@ var UI = (function () {
       return;
     }
 
-    var kdigoTxt =
-      ['Sin criterio KDIGO', 'KDIGO 1', 'KDIGO 2', 'KDIGO 3'][m.kdigo];
+    /* KDIGO: solo informativo (sin alarma, sin sonido, sin colores).
+       Lo calcula la web con el peso del paciente; las alarmas siguen siendo
+       las mismas que las del equipo (fiebre, bolsa llena, color, batería). */
+    var kdigoTxt, kdigoSub, kdigoClase = '';
+    if (!m.paciente || m.mlKgH === null || m.mlKgH === undefined) {
+      kdigoTxt = '—';
+      kdigoSub = 'KDIGO informativo · faltan datos o peso';
+    } else {
+      kdigoTxt = '<span style="font-size:0.55em;font-weight:500">' +
+        (['Sin criterio KDIGO', 'KDIGO 1', 'KDIGO 2', 'KDIGO 3'][m.kdigo] || '—') + '</span>';
+      kdigoSub = 'informativo, sin alarma · ' +
+        (m.horasOliguria
+          ? m.horasOliguria + ' h < 0,5 mL/kg/h'
+          : (m.mlKgH < 0.5 ? 'debajo de 0,5 mL/kg/h hace menos de 1 h' : 'por encima de 0,5 mL/kg/h')) +
+        (m.umbralMlH !== null && m.umbralMlH !== undefined
+          ? ' (umbral ' + U.num(m.umbralMlH, 0) + ' mL/h con ' + U.num(m.paciente.pesoKg, 0) + ' kg)'
+          : '');
+    }
 
-    var kdigoClase =
-      m.kdigo >= 2
-        ? 'critico'
-        : (m.kdigo === 1 ? 'aviso' : 'ok');
-    var kdigoSub = m.horasOliguria
-      ? m.horasOliguria + ' h por debajo de 0,5 mL/kg/h'
-      : 'diuresis dentro de objetivo';
-
-    // Equipo real: el estado lo decide el firmware (alarma OLIGURIA)
-    if (m.dispositivo.tipo === 'real') {
-      var oligEq = !!(m.equipo && m.equipo.alarmas && m.equipo.alarmas.indexOf('OLIGURIA') >= 0);
-      kdigoTxt = oligEq ? 'Oliguria' : 'Sin alarma';
-      kdigoSub = 'según el equipo';
-      kdigoClase = oligEq ? 'critico' : 'ok';
+    // Equipo real: si el firmware manda OLIGURIA (USAR_KDIGO activado), esa sí es alarma
+    if (m.dispositivo.tipo === 'real' &&
+        m.equipo && m.equipo.alarmas && m.equipo.alarmas.indexOf('OLIGURIA') >= 0) {
+      kdigoTxt = 'Oliguria';
+      kdigoSub = 'alarma informada por el equipo';
+      kdigoClase = 'critico';
     }
 
     el.innerHTML =
@@ -803,16 +814,19 @@ var UI = (function () {
               ? 'completando la hora'
               : U.num(m.equipo.dh, 0) + ' mL/h')
           : ''),
-        claseTasa(m.mlKgH)
+        ''   // sin colores por KDIGO (igual que el equipo)
       ) +
 
       resVal(
         'Diuresis (6 h)',
         m.mlH6 === null
           ? '—'
-          : U.num(m.mlKgH6, 2) + ' <small>mL/kg/h</small>',
-        'promedio de las últimas 6 h',
-        claseTasa(m.mlKgH6)
+          : U.num(m.mlH6, 0) + ' <small>mL/h</small>',
+        'promedio de las últimas 6 h' +
+          (m.mlKgH6 !== null && m.mlKgH6 !== undefined
+            ? ' · ' + U.num(m.mlKgH6, 2) + ' mL/kg/h'
+            : ''),
+        ''
       )) +
 
       resVal(
@@ -856,6 +870,13 @@ var UI = (function () {
   /* Diuresis horaria que manda el firmware ("dh", mL/h; null la primera hora) */
   function dhEquipo(m) {
     return (m && m.equipo && m.equipo.dh !== null && m.equipo.dh !== undefined) ? m.equipo.dh : null;
+  }
+
+  /* mL/h que se muestra en la tarjeta: el del equipo (real) o el calculado (piloto) */
+  function dhCama(m) {
+    if (!m) return null;
+    if (m.dispositivo && m.dispositivo.tipo === 'real') return dhEquipo(m);
+    return (m.mlH === null || m.mlH === undefined) ? null : m.mlH;
   }
 
   /* Solo informativo: dh del equipo / peso del paciente. Sin colores ni
@@ -916,7 +937,7 @@ var UI = (function () {
     var legD = U.$('#legDiuresis');
     if (legD) {
       if (!legD.dataset.original) legD.dataset.original = legD.innerHTML;
-      legD.innerHTML = d.tipo === 'real' ? 'mL/h medidos por el equipo' : legD.dataset.original;
+      legD.innerHTML = d.tipo === 'real' ? 'mL/h medidos por el equipo' : 'mL/h';
     }
 
     Graf.barrasDiuresis(
@@ -925,9 +946,10 @@ var UI = (function () {
       {
         // Equipo real: el firmware no usa el peso, así que el gráfico tampoco
         // (barras en mL/h, sin colores ni umbrales de oliguria/poliuria)
-        pesoKg: (p && d.tipo !== 'real') ? p.pesoKg : null,
-        umbralMlH: d.tipo !== 'real' ? m.umbralMlH : null,
-        umbralPoliuriaMlH: d.tipo !== 'real' ? m.umbralPoliuriaMlH : null
+        // Piloto: lo mismo (sin umbrales KDIGO)
+        pesoKg: null,
+        umbralMlH: null,
+        umbralPoliuriaMlH: null
       }
     );
 

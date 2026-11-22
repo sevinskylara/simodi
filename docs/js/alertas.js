@@ -40,7 +40,9 @@ var Alertas = (function () {
     /* ---- Técnicas: primero, porque condicionan la lectura de las demás ---- */
     if (m.sinSenalSeg > U_.segundosSinDatos) {
       a('enlace', 'tecnica', 'Sin señal del dispositivo',
-        d.serie + ' no transmite hace ' + U.duracion(m.sinSenalSeg * 1000) +
+        (isFinite(m.sinSenalSeg)
+          ? d.serie + ' no transmite hace ' + U.duracion(m.sinSenalSeg * 1000)
+          : d.serie + ' todavía no transmitió desde que se abrió la página') +
         '. Los datos mostrados son los últimos recibidos.');
     }
     if (!p) {
@@ -96,12 +98,9 @@ var Alertas = (function () {
         a('temp', 'alta', 'Fiebre',
           (m.tempC !== null ? U.num(m.tempC, 1) + ' °C medidos en la orina. ' : '') + 'Alarma informada por el equipo.');
       }
-    } else if (m.tempC !== null) {
-      if (m.tempC >= U_.tempFebrilAlta) {
-        a('temp', 'critica', 'Hipertermia', U.num(m.tempC, 1) + ' °C medidos en la orina.');
-      } else if (m.tempC >= U_.tempFebril) {
-        a('temp', 'alta', 'Fiebre', U.num(m.tempC, 1) + ' °C. Máxima de 6 h: ' + U.num(m.tempMax6h, 1) + ' °C.');
-      }
+    } else if (m.tempC !== null && m.tempC > U_.tempFebril) {
+      // Piloto: misma regla que el firmware (FIEBRE por encima de 38 °C)
+      a('temp', 'alta', 'Fiebre', U.num(m.tempC, 1) + ' °C medidos en la orina.');
     }
 
     /* ---- Color (clasificación del equipo: Normal / Anómalo) ---- */
@@ -122,9 +121,12 @@ var Alertas = (function () {
       return out;
     }
 
-    if (!p || m.mlKgH === null) return out;   // sin peso no hay criterio de diuresis
-
-    /* ---- Diuresis ---- */
+    /* ---- Diuresis de las camas piloto ----
+       Misma lógica que el equipo real: no se generan alarmas por KDIGO ni
+       por mL/kg/h (el firmware tiene USAR_KDIGO apagado). Para volver a
+       activarlas, poner DIURESIS_KDIGO_PILOTO = true. */
+    var DIURESIS_KDIGO_PILOTO = false;
+    if (DIURESIS_KDIGO_PILOTO && p && m.mlKgH !== null) {
     if (m.kdigo === 3) {
       a('kdigo', 'critica', 'LRA KDIGO estadio 3',
         'Diuresis < 0,3 mL/kg/h durante ' + m.horasOliguriaGrave + ' h' +
@@ -146,6 +148,7 @@ var Alertas = (function () {
     } else if (m.mlKgH > U_.poliuria) {
       a('poliuria', 'alta', 'Poliuria',
         U.num(m.mlKgH, 1) + ' mL/kg/h (' + U.num(m.mlH, 0) + ' mL/h). Riesgo de hipovolemia y trastorno electrolítico.');
+    }
     }
 
     /* ---- Sonda / flujo ---- */
