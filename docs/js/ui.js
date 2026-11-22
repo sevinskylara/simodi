@@ -1661,17 +1661,11 @@ var UI = (function () {
             }).join('') +
           '</select>' +
         '</div>' +
-      '<div class="fila-3" style="grid-template-columns:repeat(2,1fr)">' +
         '<div class="campo">' +
           '<label>Densidad de la orina</label>' +
           '<input type="number" id="cfgDensidad" step="0.001" value="' + med.densidadOrina + '">' +
         '</div>' +
-        '<div class="campo">' +
-          '<label>Tara de bolsa (g)</label>' +
-          '<input type="number" id="cfgTara" value="' + med.taraBolsaG + '">' +
-        '</div>' +
-      '</div>' +
-      '<p class="nota">Densidad y tara solo se usan para simular el peso en las camas piloto y en la carga manual. El equipo real ya manda el volumen en mL (la tara y la densidad se aplican en el ESP32).</p>' +
+      '<p class="nota">La densidad solo se usa en las camas piloto. El equipo real ya manda el volumen en mL (la tara y la densidad se aplican en el ESP32).</p>' +
 
       '<div class="sep"></div>' +
       '<div class="subtitulo">Datos locales</div>' +
@@ -1710,10 +1704,6 @@ var UI = (function () {
       med.densidadOrina =
         parseFloat(U.$('#cfgDensidad').value) ||
         med.densidadOrina;
-
-      med.taraBolsaG =
-        parseFloat(U.$('#cfgTara').value) ||
-        med.taraBolsaG;
 
       med.capacidadBolsaML =
         parseFloat(U.$('#cfgCap').value) ||
